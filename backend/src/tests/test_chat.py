@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 from app import create_app
 from database.db import db
-from database.models import Message
+from database.models import Message, SequenceStep
 
 class ChatEndpointTestCase(unittest.TestCase):
     def setUp(self):
@@ -16,25 +16,21 @@ class ChatEndpointTestCase(unittest.TestCase):
         with self.app.app_context():
             db.drop_all()
 
-    @patch("app.chat_with_openai")
-    def test_chat_endpoint_creates_messages(self, mock_openai_chat):
-        mock_openai_chat.return_value = "Sure, here's a great outreach message."
+    
+    def test_tool_call_and_sequence_generation(self):
+            session_id = 99
+            message = "Generate a 3-step outreach sequence for a Product Manager in SF with a professional tone"
 
-        payload = {
-            "message": "Looking for a backend engineer in NYC",
-            "session_id": 42
-        }
+            res = self.client.post("/chat", json={"message": message, "session_id": session_id})
+            self.assertEqual(res.status_code, 200)
+            data = res.get_json()
+            self.assertIn("response", data)
 
-        response = self.client.post("/chat", json=payload)
-
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json()
-        self.assertIn("response", data)
-        self.assertIn("outreach message", data["response"])
-
-        with self.app.app_context():
-            messages = Message.query.filter_by(session_id=42).all()
-            self.assertEqual(len(messages), 2)  # user + AI
+            with self.app.app_context():
+                steps = SequenceStep.query.filter_by(session_id=session_id).all()
+                self.assertEqual(len(steps), 3)
+                for step in steps:
+                    self.assertIsNotNone(step.content)
 
 if __name__ == "__main__":
     unittest.main()
