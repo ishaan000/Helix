@@ -1,4 +1,4 @@
-import { Paper, Typography, Box } from "@mui/material";
+import { Paper, Typography, Box, Fade } from "@mui/material";
 import { SequenceStep } from "../hooks/useChat";
 
 interface WorkspaceProps {
@@ -8,29 +8,80 @@ interface WorkspaceProps {
 export default function Workspace({ sequence }: WorkspaceProps) {
   return (
     <Paper
-      elevation={3}
-      square
-      sx={{ p: 2, height: "100%", overflowY: "auto" }}
+      elevation={0}
+      sx={{
+        p: 4,
+        height: "100%",
+        overflowY: "auto",
+        background: "transparent",
+      }}
     >
-      <Typography variant="h6" gutterBottom>
-        🧾 Generated Sequence
+      <Typography
+        variant="h5"
+        sx={{
+          mb: 4,
+          fontWeight: 600,
+          background: "linear-gradient(145deg, #9747FF 0%, #7B2FFF 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+        }}
+      >
+        Generated Sequence
       </Typography>
-      <Box sx={{ mt: 2 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {sequence.length > 0 ? (
-          sequence.map((step) => (
-            <Paper
+          sequence.map((step, index) => (
+            <Fade
               key={step.step_number}
-              sx={{ p: 2, mb: 1 }}
-              variant="outlined"
+              in
+              timeout={300}
+              style={{ transitionDelay: `${index * 100}ms` }}
             >
-              <Typography variant="subtitle2">
-                Step {step.step_number}
-              </Typography>
-              <Typography variant="body2">{step.content}</Typography>
-            </Paper>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    background: "rgba(255, 255, 255, 0.08)",
+                    transform: "translateY(-2px)",
+                  },
+                }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    mb: 1,
+                    fontWeight: 600,
+                    color: "#9747FF",
+                  }}
+                >
+                  Step {step.step_number}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: "text.primary",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {step.content}
+                </Typography>
+              </Paper>
+            </Fade>
           ))
         ) : (
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body1"
+            sx={{
+              color: "text.secondary",
+              textAlign: "center",
+              py: 4,
+            }}
+          >
             Your generated sequences will appear here.
           </Typography>
         )}
