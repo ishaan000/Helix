@@ -142,16 +142,24 @@ def add_step(session_id: int, step_content: str, position: Optional[int] = None)
     if position is None or position > len(steps):
         position = len(steps) + 1
 
-    # Shift later steps down
-    for step in reversed(steps):
+    # Shift step numbers at and after the insertion point
+    for step in steps:
         if step.step_number >= position:
             step.step_number += 1
 
+    # Add the new step
     new_step = SequenceStep(session_id=session_id, step_number=position, content=step_content)
     db.session.add(new_step)
+
+    # Reorder everything to ensure consistent step numbering
+    all_steps = sorted(steps + [new_step], key=lambda s: s.step_number)
+    for idx, step in enumerate(all_steps, start=1):
+        step.step_number = idx
+
     db.session.commit()
     emit_sequence_update(session_id)
     return f"New step added at position {position}."
+
 
 tool_definitions = [
     {
