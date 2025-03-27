@@ -25,50 +25,49 @@ export const useChat = () => {
     setMessages((prev) => [...prev, { sender: "user", content }]);
 
     try {
-      // Initial thinking state
       setStatus({ state: "thinking", step: "Analyzing your request" });
 
       const data = await sendChatMessage(content);
 
+      // ✅ Case 1: No sequence, just a regular reply
       if (!data.sequence) {
         setMessages((prev) => [
           ...prev,
           { sender: "ai", content: data.response },
         ]);
         setStatus({ state: null });
+        return;
       }
 
-      if (data.sequence) {
-        // Show sequence generation states with appropriate timing
-        const showGenerationSteps = async () => {
-          setStatus({
-            state: "generating",
-            step: "Identifying key milestones",
-          });
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+      // ✅ Case 2: Sequence was generated
+      const showGenerationSteps = async () => {
+        setStatus({ state: "generating", step: "Identifying key milestones" });
+        await new Promise((res) => setTimeout(res, 1000));
 
-          setStatus({
-            state: "generating",
-            step: "Planning sequence steps",
-          });
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+        setStatus({ state: "generating", step: "Planning sequence steps" });
+        await new Promise((res) => setTimeout(res, 1000));
 
-          setStatus({
-            state: "generating",
-            step: "Creating detailed instructions",
-          });
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+        setStatus({
+          state: "generating",
+          step: "Creating detailed instructions",
+        });
+        await new Promise((res) => setTimeout(res, 1000));
 
-          setSequence(data.sequence);
+        setSequence(data.sequence);
 
-          setStatus({ state: "processing", step: "Finalizing sequence" });
-          await new Promise((resolve) => setTimeout(resolve, 800));
+        setStatus({ state: "processing", step: "Finalizing sequence" });
+        await new Promise((res) => setTimeout(res, 800));
 
-          setStatus({ state: null });
-        };
+        setStatus({ state: null });
 
-        showGenerationSteps();
-      }
+        // ✅ Only now, after the sequence shows, drop follow-up message
+        setMessages((prev) => [
+          ...prev,
+          { sender: "ai", content: data.response },
+        ]);
+      };
+
+      await showGenerationSteps();
     } catch (e) {
       console.error("Error in sendMessage:", e);
       setMessages((prev) => [

@@ -53,20 +53,20 @@ def create_app(testing=False):
                 "role": "system",
                 "content": """You are Helix, an AI recruiting assistant.
 
-Your job is to help users create personalized candidate outreach sequences.
+                Your job is to help users create personalized candidate outreach sequences.
 
-You have access to the `generate_sequence` tool. Use it when you have the following information:
-1. Role (e.g., Backend Engineer, UX Designer)
-2. Location — do NOT guess this. If the user doesn't say where the role is based, ask them before calling the tool.
+                You have access to the `generate_sequence` tool. Use it when you have the following information:
+                1. Role (e.g., Backend Engineer, UX Designer)
+                2. Location — do NOT guess this. If the user doesn't say where the role is based, ask them before calling the tool.
 
-The tone will be automatically determined based on the role and context:
-- For technical roles, use a more professional and direct tone
-- For creative roles, you can be more conversational
-- For senior positions, maintain a more formal tone
-- For startup roles, you can be more casual and enthusiastic
-- For enterprise roles, keep it formal and structured
+                The tone will be automatically determined based on the role and context:
+                - For technical roles, use a more professional and direct tone
+                - For creative roles, you can be more conversational
+                - For senior positions, maintain a more formal tone
+                - For startup roles, you can be more casual and enthusiastic
+                - For enterprise roles, keep it formal and structured
 
-Be conversational, helpful, and sound like a real assistant — not a bot."""
+                Be conversational, helpful, and sound like a real assistant — not a bot."""
             }
         ]           
         for msg in past_messages:
@@ -75,17 +75,39 @@ Be conversational, helpful, and sound like a real assistant — not a bot."""
 
         # Send to OpenAI
         try:
-            ai_response = chat_with_openai(messages, session_id=session_id)
+            ai_result = chat_with_openai(messages, session_id=session_id)
 
-            # Store AI message
-            ai_msg = Message(session_id=session_id, sender="ai", content=ai_response)
+            ai_response_text = ai_result["reply"]
+            ai_sequence = ai_result.get("sequence")
+
+            # Store AI message in DB
+            ai_msg = Message(session_id=session_id, sender="ai", content=ai_response_text)
             db.session.add(ai_msg)
             db.session.commit()
 
-            return jsonify({"response": ai_response})
+            # If a sequence was generated, save it
+            if ai_sequence:
+                SequenceStep.query.filter_by(session_id=session_id).delete()
+                for step in ai_sequence:
+                    new_step = SequenceStep(
+                        session_id=session_id,
+                        step_number=step["step_number"],
+                        content=step["content"]
+                    )
+                    db.session.add(new_step)
+                db.session.commit()
+
+            # Return structured response
+            return jsonify({
+                "response": ai_response_text,
+                "sequence": ai_sequence
+            })
+
         except Exception as e:
+            import traceback
+            traceback.print_exc()  # 🔍 print full stack trace to console
             return jsonify({"error": str(e)}), 500
-        
+
     @app.route("/sequence/<int:session_id>", methods=["GET"])
     def get_sequence(session_id):
         steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
