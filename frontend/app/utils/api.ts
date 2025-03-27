@@ -6,6 +6,9 @@ export const sendChatMessage = async (message: string, sessionId = 1) => {
     body: JSON.stringify({ message, session_id: sessionId }),
   });
 
-  if (!res.ok) throw new Error("Chat API failed");
+  if (!res.ok) {
+    const errorDetails = await res.text();
+    throw new Error(`Chat API failed with status ${res.status}: ${errorDetails}`);
+  }
   return res.json();
 };
