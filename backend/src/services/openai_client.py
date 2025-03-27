@@ -2,6 +2,7 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 from agents.tools import tool_definitions, generate_sequence
+from database.models import SequenceStep
 
 load_dotenv()
 
@@ -17,7 +18,6 @@ def chat_with_openai(messages: list, session_id: int) -> str:
     )
 
     reply = response.choices[0].message
-
     # Step 2: If tool is called, extract name + arguments
     if reply.tool_calls:
         for tool_call in reply.tool_calls:
@@ -30,13 +30,19 @@ def chat_with_openai(messages: list, session_id: int) -> str:
                 result = generate_sequence(
                     role=parsed_args["role"],
                     location=parsed_args["location"],
-                    tone=parsed_args["tone"],
                     session_id=session_id,
                     step_count=parsed_args.get("step_count") # Optional
                 )
 
-                # Step 3: Return tool result as if AI said it
-                return result
+                # Get the generated sequence
+                steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
+                
+                # Format the response
+                response = f"I've generated a {len(steps)}-step outreach sequence for a {parsed_args['role']} in {parsed_args['location']}.\n\n"
+                for step in steps:
+                    response += f"Step {step.step_number}:\n{step.content}\n\n"
+                
+                return response
 
     # Step 4: Otherwise, return plain text response
     return reply.content

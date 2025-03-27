@@ -17,7 +17,7 @@ class DatabaseTestCase(unittest.TestCase):
 
     def test_db_insert_flow(self):
         with self.app.app_context():
-            user = User(name="Ishaan", company="SellScale", preferences={"tone": "casual"})
+            user = User(name="Ishaan", company="SellScale", preferences={"company_size": "startup"})
             db.session.add(user)
             db.session.commit()
 
