@@ -1,6 +1,7 @@
-import { Paper, Typography, Box, TextField, Button } from "@mui/material";
+import { Paper, Typography, Box, TextField, Button, Fade } from "@mui/material";
 import { useState } from "react";
 import { ChatMessage, LoadingStatus } from "../hooks/useChat";
+import SendIcon from "@mui/icons-material/Send";
 
 interface ChatProps {
   messages: ChatMessage[];
@@ -30,13 +31,13 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     const getStatusColor = () => {
       switch (status.state) {
         case "thinking":
-          return "info.main";
+          return "#9747FF";
         case "generating":
-          return "success.main";
+          return "#B47FFF";
         case "processing":
-          return "secondary.main";
+          return "#7B2FFF";
         default:
-          return "text.secondary";
+          return "#A0A0A0";
       }
     };
 
@@ -85,52 +86,139 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
   };
 
   return (
-    <Paper
-      elevation={3}
-      square
-      sx={{ p: 2, height: "100%", overflowY: "auto" }}
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
     >
-      <Typography variant="h6" gutterBottom>
-        🧠 Chat with Helix
-      </Typography>
-
       <Box
-        sx={{ height: "80%", overflowY: "auto", mb: 2, whiteSpace: "pre-line" }}
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          overflowY: "auto",
+          p: 4,
+          "&::-webkit-scrollbar": {
+            width: "8px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "4px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "4px",
+            "&:hover": {
+              background: "rgba(255, 255, 255, 0.15)",
+            },
+          },
+        }}
       >
         {messages.map((msg, i) => (
-          <Typography
-            key={i}
-            variant="body2"
-            color={msg.sender === "user" ? "primary" : "secondary"}
-            sx={{ my: 2 }}
-          >
-            <strong>{msg.sender === "user" ? "You" : "Helix"}:</strong>
-            <br />
-            {msg.content}
-          </Typography>
+          <Fade key={i} in timeout={300}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+                alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+                maxWidth: "80%",
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+                }}
+              >
+                {msg.sender === "user" ? "You" : "Helix"}
+              </Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  background:
+                    msg.sender === "user"
+                      ? "linear-gradient(145deg, #9747FF 0%, #7B2FFF 100%)"
+                      : "rgba(255, 255, 255, 0.05)",
+                  borderRadius: "12px",
+                  border:
+                    msg.sender === "user"
+                      ? "none"
+                      : "1px solid rgba(255, 255, 255, 0.1)",
+                }}
+              >
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: msg.sender === "user" ? "white" : "text.primary",
+                    whiteSpace: "pre-line",
+                  }}
+                >
+                  {msg.content}
+                </Typography>
+              </Paper>
+            </Box>
+          </Fade>
         ))}
-
         {renderLoadingState()}
       </Box>
 
-      <Box sx={{ display: "flex" }}>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder="Ask Helix something..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault(); // prevent newline
-              handleSubmit();
-            }
-          }}
-        />
-        <Button variant="contained" onClick={handleSubmit}>
-          Send
-        </Button>
+      <Box
+        sx={{
+          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+          p: 2,
+        }}
+      >
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Ask Helix something..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: "transparent",
+                borderRadius: "12px",
+                "& fieldset": {
+                  borderColor: "rgba(255, 255, 255, 0.1)",
+                },
+                "&:hover fieldset": {
+                  borderColor: "rgba(255, 255, 255, 0.2)",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#9747FF",
+                },
+              },
+            }}
+          />
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={!input.trim()}
+            sx={{
+              minWidth: "48px",
+              width: "48px",
+              height: "40px",
+              borderRadius: "12px",
+              p: 0,
+            }}
+          >
+            <SendIcon sx={{ fontSize: 20 }} />
+          </Button>
+        </Box>
       </Box>
-    </Paper>
+    </Box>
   );
 }

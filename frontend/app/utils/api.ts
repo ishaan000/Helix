@@ -8,7 +8,11 @@ export const sendChatMessage = async (message: string, sessionId = 1) => {
 
   if (!res.ok) {
     const errorDetails = await res.text();
-    throw new Error(`Chat API failed with status ${res.status}: ${errorDetails}`);
+    throw new Error(
+      `Chat API failed with status ${res.status}: ${errorDetails}`
+    );
   }
-  return res.json();
+  const data = await res.json();
+  console.log("Raw API Response:", { data, sessionId }); // Debug log
+  return data;
 };

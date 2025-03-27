@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { sendChatMessage } from "../utils/api";
+import { useEffect } from "react";
+import io from "socket.io-client";
 
+const socket = io(process.env.REACT_APP_SOCKET_URL || "http://localhost:5001");
 export interface ChatMessage {
   sender: "user" | "ai";
   content: string;
@@ -20,6 +23,25 @@ export const useChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sequence, setSequence] = useState<SequenceStep[]>([]);
   const [status, setStatus] = useState<LoadingStatus>({ state: null });
+  const [sessionId] = useState(1); // keep it simple for now
+
+  useEffect(() => {
+    const handleSequenceUpdate = (data: {
+      session_id: number;
+      sequence: SequenceStep[];
+    }) => {
+      if (data.session_id === sessionId) {
+        console.log("🔁 Real-time update received", data);
+        setSequence(data.sequence);
+      }
+    };
+
+    socket.on("sequence_updated", handleSequenceUpdate);
+
+    return () => {
+      socket.off("sequence_updated", handleSequenceUpdate);
+    };
+  }, [sessionId]);
 
   const sendMessage = async (content: string) => {
     setMessages((prev) => [...prev, { sender: "user", content }]);
@@ -27,7 +49,7 @@ export const useChat = () => {
     try {
       setStatus({ state: "thinking", step: "Analyzing your request" });
 
-      const data = await sendChatMessage(content);
+      const data = await sendChatMessage(content, sessionId);
 
       // ✅ Case 1: No sequence, just a regular reply
       if (!data.sequence) {
