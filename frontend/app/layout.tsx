@@ -1,11 +1,18 @@
+// app/layout.tsx
+"use client";
+
+import { ThemeProvider } from "../theme/ThemeContext";
+
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }
