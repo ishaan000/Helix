@@ -1,41 +1,32 @@
 "use client";
 
-import { Grid, Paper, Typography } from "@mui/material";
+import { Box } from "@mui/material";
+import Chat from "../app/components/Chat";
+import Workspace from "../app/components/Workspace";
+import { useChat } from "../app/hooks/useChat";
 
 export default function HomePage() {
-  return (
-    <Grid container sx={{ height: "100vh" }}>
-      <Grid
-        item
-        xs={4}
-        component={Paper as React.ElementType}
-        elevation={3}
-        square
-        sx={{ p: 2, borderRight: "1px solid #eee" }}
-      >
-        <Typography variant="h6" gutterBottom>
-          🧠 Chat (Coming Soon)
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          This is where your AI conversations will appear.
-        </Typography>
-      </Grid>
+  const { messages, sequence, sendMessage, status } = useChat();
 
-      <Grid
-        item
-        xs={8}
-        component={Paper as React.ElementType}
-        elevation={3}
-        square
-        sx={{ p: 2 }}
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        height: "100vh",
+        overflow: "hidden", // prevent scrollbars from wrapping
+      }}
+    >
+      {/* Left Panel (Chat) */}
+      <Box
+        sx={{ width: "35%", borderRight: "1px solid #eee", overflow: "hidden" }}
       >
-        <Typography variant="h6" gutterBottom>
-          🧾 Outreach Workspace (Coming Soon)
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Generated sequences will be editable here.
-        </Typography>
-      </Grid>
-    </Grid>
+        <Chat messages={messages} sendMessage={sendMessage} status={status} />
+      </Box>
+
+      {/* Right Panel (Workspace) */}
+      <Box sx={{ width: "65%", overflow: "hidden" }}>
+        <Workspace sequence={sequence} />
+      </Box>
+    </Box>
   );
 }
