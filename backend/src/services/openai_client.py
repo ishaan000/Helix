@@ -7,9 +7,11 @@ from agents.tools import (
     revise_step,
     change_tone,
     add_step,
-    generate_recruiting_asset
+    generate_recruiting_asset,
+    search_and_analyze_professionals,
+    generate_personalized_outreach
 )
-from database.models import SequenceStep
+from database.models import SequenceStep, Session, User
 import json
 
 
@@ -17,41 +19,65 @@ load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def chat_with_openai(messages: list, session_id: int) -> dict:
+def chat_with_openai(messages: list, session_id: str) -> dict:
     print(f"\nProcessing chat with session_id: {session_id}")  # Debug log
-    
+
+    # Fetch the user context via the session ID
+    session = Session.query.get(session_id)
+    if session and session.user:
+        user = session.user
+        context_message = {
+            "role": "system",
+            "content": f"""
+    The user is a recruiter named {user.name} at {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
+    They are a {user.title} in the {user.industry} industry.
+    Do NOT ask for this information again unless explicitly requested.
+    """
+        }
+        # Inject into the second position (after the main system prompt, before chat history)
+        messages.insert(1, context_message)
+        
     # Step 1: Send user + history messages and tool defs
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4",
         messages=messages,
         tools=tool_definitions,
         tool_choice="auto"
     )
 
-    reply = response.choices[0].message
+    message = response.choices[0].message
     # Step 2: If tool is called, extract name + arguments
-    if reply.tool_calls:
-        for tool_call in reply.tool_calls:
+    if message.tool_calls:
+        for tool_call in message.tool_calls:
             name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
             
-            # Ensure session_id is included in the arguments
-            if "session_id" not in args:
-                args["session_id"] = session_id
+            # Always use the correct session_id from the chat endpoint
+            args["session_id"] = session_id
             
             print(f"→ Tool called: {name}")
             print(f"→ Arguments: {json.dumps(args, indent=2)}")
 
-            if name == "generate_sequence":
-                generate_sequence(**args)
-            elif name == "revise_step":
-                revise_step(**args)
-            elif name == "change_tone":
-                change_tone(**args)
-            elif name == "add_step":
-                add_step(**args)
-            elif name == "generate_recruiting_asset":
-                generate_recruiting_asset(**args)
+            try:
+                if name == "generate_sequence":
+                    result = generate_sequence(**args)
+                elif name == "revise_step":
+                    result = revise_step(**args)
+                elif name == "change_tone":
+                    result = change_tone(**args)
+                elif name == "add_step":
+                    result = add_step(**args)
+                elif name == "generate_recruiting_asset":
+                    result = generate_recruiting_asset(**args)
+                elif name == "search_and_analyze_professionals":
+                    result = search_and_analyze_professionals(**args)
+                elif name == "generate_personalized_outreach":
+                    result = generate_personalized_outreach(**args)
+                
+                print(f"Tool execution result: {result}")  # Debug log
+            except Exception as e:
+                print(f"Error executing tool {name}: {str(e)}")  # Debug log
+                continue
 
         # After tool execution, fetch updated sequence
         print(f"Fetching sequence for session_id: {session_id}")  # Debug log
@@ -75,34 +101,49 @@ def chat_with_openai(messages: list, session_id: int) -> dict:
         - Ask if the user wants to update the tone, fix any sections, or regenerate it.
         - Be proactive and conversational — avoid starting with 'Hi' or repeating your name.
         """
+        elif name == "search_and_analyze_professionals":
+            follow_up_prompt = """You just performed a professional search using the `search_and_analyze_professionals` tool.
+
+        Now respond naturally:
+        - Acknowledge that you've found relevant professionals.
+        - Ask if they'd like to:
+          - Generate a personalized outreach sequence for any of these professionals
+          - Get more details about specific professionals
+          - Refine the search with different criteria
+        - Keep it short and friendly.
+        - Don't repeat the search results (they're already displayed).
+        """
         else:
             follow_up_prompt = f"""You just used the `{name}` tool.
 
         Respond naturally:
         - Mention what was done (e.g. revised a step, changed tone).
         - Ask if there's anything else the user would like to tweak or explore.
+        - Keep it short and friendly.
         """
 
+        # Step 3: Send follow-up prompt to get natural response
         follow_up_response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{ "role": "user", "content": follow_up_prompt }]
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": follow_up_prompt},
+                {"role": "user", "content": "What happened?"}
+            ]
         )
 
-        follow_up = follow_up_response.choices[0].message.content
+        sequence_data = [{"step_number": step.step_number, "content": step.content} for step in steps]
+        print(f"Returning sequence data: {sequence_data}")  # Debug log
 
-        sequence_data = [
-            {"step_number": step.step_number, "content": step.content}
-            for step in steps
-        ]
-        print(f"Returning sequence with {len(sequence_data)} steps")  # Debug log
+        # If this was a search, include the search results in the response
+        if name == "search_and_analyze_professionals":
+            return {
+                "response": result + "\n\n" + follow_up_response.choices[0].message.content,
+                "sequence": sequence_data
+            }
 
         return {
-            "reply": follow_up,
+            "response": follow_up_response.choices[0].message.content,
             "sequence": sequence_data
         }
 
-    # Step 4: Otherwise, return plain text response
-    return {
-        "reply": reply.content,
-        "sequence": []  # Return empty array instead of None
-    }
+    return {"response": message.content}

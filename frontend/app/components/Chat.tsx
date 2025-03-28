@@ -6,10 +6,13 @@ import {
   Button,
   Fade,
   Chip,
+  Link,
+  Divider,
 } from "@mui/material";
 import { useState } from "react";
 import { ChatMessage, LoadingStatus } from "../hooks/useChat";
 import SendIcon from "@mui/icons-material/Send";
+import SearchIcon from "@mui/icons-material/Search";
 
 interface ChatProps {
   messages: ChatMessage[];
@@ -17,13 +20,75 @@ interface ChatProps {
   status: LoadingStatus;
 }
 
+interface SearchResult {
+  name: string;
+  source?: string;
+  snippet: string;
+  link?: string;
+}
+
 const EXAMPLE_PROMPTS = [
   "Generate a sequence for a Founding Engineer in SF",
+  "Search for a UX Designer in SF",
+
   "Write an offer letter for the UX lead at SellScale.",
-  "Create a personalized outreach for a UX Designer in Boston",
   "Generate a casual outreach for a Backend Engineer in Chicago",
-  "Create a sequence for a Freelance Graphic Designer in Los Angeles",
+  "Search for a Software Engineer in Austin",
 ];
+
+const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        p: 2,
+        background: "rgba(151, 71, 255, 0.05)",
+        borderRadius: "12px",
+        border: "1px solid rgba(151, 71, 255, 0.1)",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <SearchIcon sx={{ color: "#9747FF" }} />
+        <Typography variant="subtitle2" sx={{ color: "#9747FF" }}>
+          Search Results
+        </Typography>
+      </Box>
+      {results.map((result, index) => (
+        <Box key={index} sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+            {result.name}
+          </Typography>
+          {result.snippet && (
+            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+              {result.snippet}
+            </Typography>
+          )}
+          {result.link && (
+            <Link
+              href={result.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                display: "inline-block",
+                mt: 1,
+                color: "#9747FF",
+                textDecoration: "none",
+                "&:hover": {
+                  textDecoration: "underline",
+                },
+              }}
+            >
+              View Profile →
+            </Link>
+          )}
+          {index < results.length - 1 && (
+            <Divider sx={{ my: 2, borderColor: "rgba(151, 71, 255, 0.1)" }} />
+          )}
+        </Box>
+      ))}
+    </Box>
+  );
+};
 
 export default function Chat({ messages, sendMessage, status }: ChatProps) {
   const [input, setInput] = useState("");
@@ -105,6 +170,63 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     );
   };
 
+  const parseSearchResults = (content: string): SearchResult[] | null => {
+    // Check if the content contains search results
+    if (!content.includes("professionals matching your search")) return null;
+
+    const results: SearchResult[] = [];
+    const lines = content.split("\n");
+    let currentResult: Partial<SearchResult> = {};
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Find where suggestions start
+      if (
+        line.includes("Generate a personalized outreach") ||
+        line.includes("Get more details about") ||
+        line.includes("Refine the search")
+      ) {
+        break;
+      }
+
+      // Skip the "Would you like me to" line
+      if (line.includes("Would you like me to")) {
+        continue;
+      }
+
+      // Handle numbered entries
+      if (line.match(/^\d+\./)) {
+        if (Object.keys(currentResult).length > 0) {
+          results.push(currentResult as SearchResult);
+        }
+        currentResult = { name: line.replace(/^\d+\.\s*/, "") };
+      }
+      // Handle source lines
+      else if (line.startsWith("   Source:")) {
+        currentResult.source = line.replace("   Source:", "").trim();
+      }
+      // Handle current/description lines
+      else if (line.startsWith("   Current:") || line.startsWith("   ")) {
+        const cleanLine = line.replace(/^(   Current:|   )/, "").trim();
+        if (cleanLine) {
+          currentResult.snippet = cleanLine;
+        }
+      }
+      // Handle profile links
+      else if (line.startsWith("Profile:")) {
+        currentResult.link = line.replace("Profile:", "").trim();
+      }
+    }
+
+    // Add the last result if it exists
+    if (Object.keys(currentResult).length > 0) {
+      results.push(currentResult as SearchResult);
+    }
+
+    return results;
+  };
+
   return (
     <Box
       sx={{
@@ -172,15 +294,51 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                       : "1px solid rgba(255, 255, 255, 0.1)",
                 }}
               >
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: msg.sender === "user" ? "white" : "text.primary",
-                    whiteSpace: "pre-line",
-                  }}
-                >
-                  {msg.content}
-                </Typography>
+                {msg.sender === "ai" && parseSearchResults(msg.content) ? (
+                  <>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: "text.primary",
+                        whiteSpace: "pre-line",
+                        mb: 2,
+                      }}
+                    >
+                      {msg.content.split("\n\n")[0]}
+                    </Typography>
+                    <SearchResultsBox
+                      results={parseSearchResults(msg.content)!}
+                    />
+                    <Box
+                      sx={{
+                        mt: 2,
+                        p: 2,
+                        background: "rgba(151, 71, 255, 0.05)",
+                        borderRadius: "12px",
+                      }}
+                    >
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: "text.primary",
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {msg.content.includes("Would you like to:") ? msg.content.split("Would you like to:")[1] : ""}
+                      </Typography>
+                    </Box>
+                  </>
+                ) : (
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: msg.sender === "user" ? "white" : "text.primary",
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {msg.content}
+                  </Typography>
+                )}
               </Paper>
             </Box>
           </Fade>
