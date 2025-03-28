@@ -1,4 +1,12 @@
-import { Paper, Typography, Box, TextField, Button, Fade } from "@mui/material";
+import {
+  Paper,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Fade,
+  Chip,
+} from "@mui/material";
 import { useState } from "react";
 import { ChatMessage, LoadingStatus } from "../hooks/useChat";
 import SendIcon from "@mui/icons-material/Send";
@@ -8,6 +16,14 @@ interface ChatProps {
   sendMessage: (content: string) => Promise<void>;
   status: LoadingStatus;
 }
+
+const EXAMPLE_PROMPTS = [
+  "Generate a sequence for a Founding Engineer in SF",
+  "Draft a sequence for a Senior Frontend Engineer in Austin",
+  "Create a personalized outreach for a UX Designer in Boston",
+  "Generate a casual outreach for a Backend Engineer in Chicago",
+  "Create a sequence for a Freelance Graphic Designer in Los Angeles",
+];
 
 export default function Chat({ messages, sendMessage, status }: ChatProps) {
   const [input, setInput] = useState("");
@@ -23,6 +39,10 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     } catch (e) {
       console.error("Send failed", e);
     }
+  };
+
+  const handleExampleClick = (prompt: string) => {
+    setInput(prompt);
   };
 
   const renderLoadingState = () => {
@@ -174,6 +194,32 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
           p: 2,
         }}
       >
+        {messages.length === 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", mb: 1, display: "block" }}
+            >
+              Try these example prompts:
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {EXAMPLE_PROMPTS.map((prompt, index) => (
+                <Chip
+                  key={index}
+                  label={prompt}
+                  onClick={() => handleExampleClick(prompt)}
+                  sx={{
+                    backgroundColor: "rgba(151, 71, 255, 0.1)",
+                    color: "#9747FF",
+                    "&:hover": {
+                      backgroundColor: "rgba(151, 71, 255, 0.2)",
+                    },
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
         <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
             fullWidth

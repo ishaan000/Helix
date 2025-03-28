@@ -61,15 +61,21 @@ export default function Workspace({ sequence }: WorkspaceProps) {
                 >
                   Step {step.step_number}
                 </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: "text.primary",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {step.content}
-                </Typography>
+                {step.content.split("\n\n").map((paragraph, i) => (
+                  <Typography
+                    key={i}
+                    variant="body1"
+                    sx={{
+                      color: "text.primary",
+                      lineHeight: 1.6,
+                      mb: 2,
+                      whiteSpace: "pre-line", // <- preserves \n
+                      wordBreak: "break-word", // <- wraps long placeholder blocks
+                    }}
+                  >
+                    {paragraph}
+                  </Typography>
+                ))}
               </Paper>
             </Fade>
           ))
