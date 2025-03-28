@@ -1,12 +1,13 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, IconButton } from "@mui/material";
 import Chat from "../../components/Chat";
 import Workspace from "../../components/Workspace";
 import ChatSidebar from "../../components/ChatSidebar";
 import { useChat } from "../../hooks/useChat";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import ViewStreamIcon from "@mui/icons-material/ViewStream";
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
@@ -14,6 +15,7 @@ export default function ChatPage() {
   const sessionId = searchParams.get("session");
   const { messages, sequence, sendMessage, status } = useChat(sessionId);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+  const [isSequenceVisible, setIsSequenceVisible] = useState(true);
 
   // Check for user authentication
   useEffect(() => {
@@ -28,6 +30,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (sequence.length > 0) {
       setIsSidebarExpanded(false);
+      setIsSequenceVisible(true);
     }
   }, [sequence]);
 
@@ -52,15 +55,16 @@ export default function ChatPage() {
           flex: 1,
           display: "flex",
           width: "100%",
+          position: "relative",
         }}
       >
         <Box
           sx={{
-            width: sequence.length > 0 ? "35%" : "100%",
+            width: sequence.length > 0 && isSequenceVisible ? "35%" : "100%",
             height: "100%",
             transition: "all 0.5s ease-in-out",
             borderRight:
-              sequence.length > 0
+              sequence.length > 0 && isSequenceVisible
                 ? "1px solid rgba(255, 255, 255, 0.1)"
                 : "none",
             position: "relative",
@@ -90,10 +94,36 @@ export default function ChatPage() {
           <Chat messages={messages} sendMessage={sendMessage} status={status} />
         </Box>
 
-        {sequence.length > 0 && (
+        {sequence.length > 0 && isSequenceVisible && (
           <Box sx={{ width: "65%", overflow: "hidden" }}>
-            <Workspace sequence={sequence} />
+            <Workspace
+              sequence={sequence}
+              onMinimize={() => setIsSequenceVisible(false)}
+            />
           </Box>
+        )}
+
+        {sequence.length > 0 && !isSequenceVisible && (
+          <IconButton
+            onClick={() => setIsSequenceVisible(true)}
+            size="small"
+            sx={{
+              position: "fixed",
+              right: 16,
+              bottom: "50%",
+              transform: "translateY(50%)",
+              color: "#9747FF",
+              background: "rgba(151, 71, 255, 0.1)",
+              width: 32,
+              height: 32,
+              zIndex: 10,
+              "&:hover": {
+                background: "rgba(151, 71, 255, 0.2)",
+              },
+            }}
+          >
+            <ViewStreamIcon sx={{ fontSize: 20 }} />
+          </IconButton>
         )}
       </Box>
     </Box>

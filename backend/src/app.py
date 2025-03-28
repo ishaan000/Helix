@@ -244,7 +244,7 @@ def create_app(testing=False):
             traceback.print_exc()  # print full stack trace to console
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/sequence/<int:session_id>", methods=["GET"])
+    @app.route("/sequence/<session_id>", methods=["GET"])
     def get_sequence(session_id):
         steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
 
