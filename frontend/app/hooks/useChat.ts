@@ -28,6 +28,11 @@ export const useChat = (sessionId: string | null) => {
     sessionId
   );
 
+  // Update currentSessionId when sessionId prop changes
+  useEffect(() => {
+    setCurrentSessionId(sessionId);
+  }, [sessionId]);
+
   // Create a new session if needed
   const createSession = async () => {
     try {
