@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from .web_search import search_professionals, get_professional_details
 
 from socketio_instance import socketio  # ✅ import safely
@@ -240,54 +240,78 @@ Format the result as if it will be sent to a candidate or hiring manager.
 
     return "Recruiting asset generated successfully."
 
-def search_and_analyze_professionals(session_id: str, query: str, location: Optional[str] = None) -> str:
+def search_and_analyze_professionals(
+    session_id: str,
+    query: str,
+    location: Optional[str] = None,
+    years_experience: Optional[int] = None,
+    skills: Optional[List[str]] = None,
+    current_company: Optional[str] = None
+) -> str:
     """
-    Search for professionals and generate a summary of findings.
+    Search for professionals and analyze their profiles.
     
     Args:
-        session_id (str): The current session ID
-        query (str): The search query (e.g., "top designers", "founding engineers")
+        session_id (str): The session ID
+        query (str): Search query (e.g., "software engineer", "product designer")
         location (Optional[str]): Location to search in
+        years_experience (Optional[int]): Minimum years of experience
+        skills (Optional[List[str]]): List of required skills
+        current_company (Optional[str]): Current company name
     
     Returns:
-        str: A formatted response with search results and analysis
+        str: Formatted results with professional profiles
     """
     try:
-        logger.info(f"Starting search for query: {query}, location: {location}")
-        # Get search results
-        results = search_professionals(query, location)
-        logger.info(f"Search results: {results}")
+        # Get user context for personalization
+        user_context = get_user_context(session_id)
         
-        if not results or not results.get("professionals"):
-            logger.warning("No professionals found in results")
-            return "I couldn't find any professionals matching your search criteria."
+        # Search for professionals
+        results = search_professionals(
+            query=query,
+            location=location,
+            years_experience=years_experience,
+            skills=skills,
+            current_company=current_company
+        )
         
-        # Format the response
-        response = f"I found {len(results['professionals'])} professionals matching your search for '{query}'"
+        if not results["professionals"]:
+            return f"I couldn't find any professionals matching your criteria for '{query}' in {location or 'any location'}. Would you like to try different search criteria?"
+        
+        # Format the results
+        response = f"I found {results['total_found']} professionals matching your search for '{query}'"
         if location:
             response += f" in {location}"
         response += ":\n\n"
         
         for i, prof in enumerate(results["professionals"], 1):
-            if isinstance(prof, dict):
-                response += f"{i}. {prof.get('name', 'Unknown')}\n"
-                response += f"   Source: {prof.get('source', 'Unknown')}\n"
-                response += f"   {prof.get('snippet', 'No description available')}\n\n"
-            else:
-                logger.warning(f"Invalid professional data format: {prof}")
+            response += f"{i}. {prof['name']}\n"
+            
+            # Add current position if available
+            if prof.get("current_position"):
+                response += f"Current: {prof['current_position']}\n"
+            
+            # Add experience if available
+            if "years_experience" in prof:
+                response += f"Experience: {prof['years_experience']}+ years\n"
+            
+            # Add matched skills if available
+            if "matched_skills" in prof and prof["matched_skills"]:
+                response += f"Skills: {', '.join(prof['matched_skills'])}\n"
+            
+            # Add profile link
+            response += f"Profile: {prof['link']}\n\n"
         
-        # Store the search results in the session for later use
-        session = Session.query.get(session_id)
-        if session:
-            session.search_results = json.dumps(results)
-            db.session.commit()
-            logger.info("Successfully stored search results in session")
+        response += "\nWould you like to:\n"
+        response += "1. Generate a personalized outreach sequence for any of these professionals\n"
+        response += "2. Get more details about specific professionals\n"
+        response += "3. Refine the search with different criteria"
         
         return response
         
     except Exception as e:
         logger.error(f"Error in search_and_analyze_professionals: {str(e)}", exc_info=True)
-        return f"An error occurred while searching: {str(e)}"
+        return f"An error occurred while searching for professionals: {str(e)}"
 
 def generate_personalized_outreach(profile_url: str, session_id: str) -> str:
     """
@@ -429,7 +453,10 @@ tool_definitions = [
                 "properties": {
                     "session_id": {"type": "string", "description": "The session ID as a string UUID"},
                     "query": {"type": "string", "description": "The search query (e.g., 'top designers', 'founding engineers')"},
-                    "location": {"type": "string", "description": "Optional. Location to search in (e.g., 'San Francisco')"}
+                    "location": {"type": "string", "description": "Optional. Location to search in (e.g., 'San Francisco')"},
+                    "years_experience": {"type": "integer", "description": "Optional. Minimum years of experience"},
+                    "skills": {"type": "array", "items": {"type": "string"}, "description": "Optional. List of required skills"},
+                    "current_company": {"type": "string", "description": "Optional. Current company name"}
                 },
                 "required": ["session_id", "query"]
             }

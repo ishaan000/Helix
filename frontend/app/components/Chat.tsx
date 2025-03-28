@@ -180,6 +180,15 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     let currentResult: Partial<SearchResult> = {};
 
     for (const line of lines) {
+      // Stop parsing if we hit the suggestions section
+      if (
+        line.includes("Generate a personalized outreach") ||
+        line.includes("Get more details about") ||
+        line.includes("Refine the search")
+      ) {
+        break;
+      }
+
       if (line.match(/^\d+\./)) {
         if (Object.keys(currentResult).length > 0) {
           results.push(currentResult as SearchResult);
@@ -189,6 +198,8 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
         currentResult.source = line.replace("   Source:", "").trim();
       } else if (line.startsWith("   ")) {
         currentResult.snippet = line.trim();
+      } else if (line.startsWith("Profile:")) {
+        currentResult.link = line.replace("Profile:", "").trim();
       }
     }
 

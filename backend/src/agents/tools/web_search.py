@@ -3,6 +3,9 @@ import os
 from dotenv import load_dotenv
 from serpapi import GoogleSearch
 import logging
+import requests
+from bs4 import BeautifulSoup
+import json
 
 load_dotenv()
 
@@ -10,61 +13,168 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def search_professionals(query: str, location: Optional[str] = None) -> Dict:
+def search_professionals(
+    query: str,
+    location: Optional[str] = None,
+    years_experience: Optional[int] = None,
+    skills: Optional[List[str]] = None,
+    current_company: Optional[str] = None
+) -> Dict:
     """
-    Search for professionals using SerpAPI.
+    Search for professionals using LinkedIn.
     
     Args:
-        query (str): The search query (e.g., "top designers", "founding engineers")
+        query (str): The search query (e.g., "software engineer", "product designer")
         location (Optional[str]): Location to search in (e.g., "San Francisco")
+        years_experience (Optional[int]): Minimum years of experience
+        skills (Optional[List[str]]): List of required skills
+        current_company (Optional[str]): Current company name
     
     Returns:
         Dict: Search results containing professional profiles
     """
     try:
-        search_query = f"{query}"
-        if location:
-            search_query += f" in {location}"
+        # Build a more targeted LinkedIn search query
+        linkedin_query = f"{query} site:linkedin.com/in/"
         
+        # Add location if specified
+        if location:
+            linkedin_query += f" in {location}"
+            
+        # Add current company if specified
+        if current_company:
+            linkedin_query += f" at {current_company}"
+            
+        # Add experience if specified
+        if years_experience:
+            linkedin_query += f" {years_experience}+ years experience"
+            
+        # Add skills if specified
+        if skills:
+            linkedin_query += f" {' OR '.join(skills)}"
+            
         params = {
             "engine": "google",
-            "q": search_query,
+            "q": linkedin_query,
             "api_key": os.getenv("SERPAPI_KEY"),
-            "num": 10  # Limit to top 10 results
+            "num": 10,
+            "gl": "us",  # Set to US for better results
+            "hl": "en"   # Set to English
         }
         
-        logger.info(f"Making SerpAPI request with query: {search_query}")
+        logger.info(f"Making LinkedIn search request with query: {linkedin_query}")
         search = GoogleSearch(params)
         search_results = search.get_dict()
         
-        # Log the raw results for debugging
-        logger.info(f"Raw SerpAPI response: {search_results}")
-        
-        # Extract relevant information from results
         professionals = []
-        if "organic_results" in search_results and isinstance(search_results["organic_results"], list):
-            for search_result in search_results["organic_results"]:
-                if isinstance(search_result, dict):
+        if "organic_results" in search_results:
+            for result in search_results["organic_results"]:
+                if "linkedin.com/in/" in result.get("link", ""):
+                    # Extract name and clean it
+                    title = result.get("title", "")
+                    name = title.split(" | ")[0] if " | " in title else title
+                    
+                    # Extract current position if available
+                    snippet = result.get("snippet", "")
+                    current_position = extract_current_position(snippet)
+                    
                     professional = {
-                        "name": search_result.get("title", ""),
-                        "link": search_result.get("link", ""),
-                        "snippet": search_result.get("snippet", ""),
-                        "source": search_result.get("source", "")
+                        "name": name,
+                        "link": result.get("link", ""),
+                        "snippet": snippet,
+                        "source": "LinkedIn",
+                        "type": "profile",
+                        "current_position": current_position
                     }
+                    
+                    # Add experience if mentioned
+                    if years_experience:
+                        professional["years_experience"] = extract_years_experience(snippet)
+                    
+                    # Add skills if mentioned
+                    if skills:
+                        professional["matched_skills"] = [skill for skill in skills if skill.lower() in snippet.lower()]
+                    
                     professionals.append(professional)
         
-        logger.info(f"Found {len(professionals)} professionals")
+        # Filter out job listings and invalid profiles
+        filtered_professionals = [
+            prof for prof in professionals
+            if not any(term in prof["snippet"].lower() for term in ["job", "career", "hiring", "apply now"])
+            and prof["name"] != "LinkedIn"
+        ]
+        
         return {
-            "query": search_query,
-            "professionals": professionals
+            "query": query,
+            "professionals": filtered_professionals,
+            "total_found": len(filtered_professionals)
         }
         
     except Exception as e:
         logger.error(f"Error in search_professionals: {str(e)}", exc_info=True)
         return {
-            "query": search_query,
-            "professionals": []
+            "query": query,
+            "professionals": [],
+            "total_found": 0
         }
+
+def search_github(query: str, location: Optional[str] = None) -> List[Dict]:
+    """Search GitHub for developers."""
+    try:
+        headers = {
+            "Authorization": f"token {os.getenv('GITHUB_TOKEN')}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        search_query = f"{query}"
+        if location:
+            search_query += f" location:{location}"
+            
+        url = f"https://api.github.com/search/users?q={search_query}"
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            results = response.json()
+            return [
+                {
+                    "name": user["login"],
+                    "link": user["html_url"],
+                    "snippet": f"GitHub profile with {user.get('public_repos', 0)} public repositories",
+                    "source": "GitHub",
+                    "type": "profile"
+                }
+                for user in results.get("items", [])
+            ]
+        return []
+        
+    except Exception as e:
+        logger.error(f"Error in search_github: {str(e)}", exc_info=True)
+        return []
+
+def extract_current_position(snippet: str) -> str:
+    """Extract current position from LinkedIn snippet."""
+    try:
+        # Look for position at the start of the snippet
+        lines = snippet.split("\n")
+        for line in lines:
+            if any(term in line.lower() for term in ["at ", "currently ", "presently "]):
+                return line.strip()
+        return ""
+    except:
+        return ""
+
+def extract_years_experience(snippet: str) -> Optional[int]:
+    """Extract years of experience from text snippet."""
+    try:
+        # Simple regex pattern for years of experience
+        import re
+        pattern = r"(\d+)\+?\s*(?:year|yr)s?\s*(?:of\s*)?experience"
+        match = re.search(pattern, snippet.lower())
+        if match:
+            return int(match.group(1))
+    except:
+        pass
+    return None
 
 def get_professional_details(profile_url: str) -> Dict:
     """
@@ -86,9 +196,6 @@ def get_professional_details(profile_url: str) -> Dict:
         logger.info(f"Making SerpAPI request for profile: {profile_url}")
         search = GoogleSearch(params)
         search_results = search.get_dict()
-        
-        # Log the raw results for debugging
-        logger.info(f"Raw SerpAPI response: {search_results}")
         
         # Extract relevant information with better error handling
         organic_results = search_results.get("organic_results", [])
