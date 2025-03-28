@@ -117,37 +117,6 @@ def search_professionals(
             "professionals": [],
             "total_found": 0
         }
-    """Search GitHub for developers."""
-    try:
-        headers = {
-            "Authorization": f"token {os.getenv('GITHUB_TOKEN')}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        
-        search_query = f"{query}"
-        if location:
-            search_query += f" location:{location}"
-            
-        url = f"https://api.github.com/search/users?q={search_query}"
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            results = response.json()
-            return [
-                {
-                    "name": user["login"],
-                    "link": user["html_url"],
-                    "snippet": f"GitHub profile with {user.get('public_repos', 0)} public repositories",
-                    "source": "GitHub",
-                    "type": "profile"
-                }
-                for user in results.get("items", [])
-            ]
-        return []
-        
-    except Exception as e:
-        logger.error(f"Error in search_github: {str(e)}", exc_info=True)
-        return []
 
 def extract_current_position(snippet: str) -> str:
     """Extract current position from LinkedIn snippet."""
