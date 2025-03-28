@@ -139,34 +139,64 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
       }
     };
 
+    const getStatusMessage = () => {
+      if (status.step) {
+        // Check for tool usage in the step message
+        if (status.step.includes("searching")) {
+          return "🔍 Searching for relevant profiles and information...";
+        } else if (status.step.includes("analyzing")) {
+          return "📊 Analyzing the search results and crafting a response...";
+        } else if (status.step.includes("generating")) {
+          return "✨ Generating personalized content based on the findings...";
+        }
+        return status.step;
+      }
+      return "Processing your request";
+    };
+
     return (
-      <Typography
-        variant="body2"
-        sx={{
-          fontStyle: "italic",
-          my: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          color: getStatusColor(),
-          transition: "all 0.3s ease",
-        }}
-      >
-        <span>{getStatusEmoji()}</span>
-        <span>{status.step || "Processing"}</span>
-        <Box
-          component="span"
+      <Box sx={{ my: 2 }}>
+        <Typography
+          variant="body2"
           sx={{
-            display: "inline-block",
-            ml: 1,
-            animation: "pulse 1.5s infinite",
+            fontStyle: "italic",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            color: getStatusColor(),
+            transition: "all 0.3s ease",
+            mb: 1,
           }}
         >
-          <span className="dot">.</span>
-          <span className="dot">.</span>
-          <span className="dot">.</span>
-        </Box>
-      </Typography>
+          <span>{getStatusEmoji()}</span>
+          <span>{getStatusMessage()}</span>
+          <Box
+            component="span"
+            sx={{
+              display: "inline-block",
+              ml: 1,
+              animation: "pulse 1.5s infinite",
+            }}
+          >
+            <span className="dot">.</span>
+            <span className="dot">.</span>
+            <span className="dot">.</span>
+          </Box>
+        </Typography>
+        {status.step && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: "block",
+              ml: 4,
+            }}
+          >
+            This may take a few moments while I gather the best information for
+            you
+          </Typography>
+        )}
+      </Box>
     );
   };
 
@@ -260,7 +290,15 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
         }}
       >
         {messages.map((msg, i) => (
-          <Fade key={i} in timeout={300}>
+          <Fade
+            key={i}
+            in
+            timeout={500}
+            style={{
+              transformOrigin: msg.sender === "ai" ? "0 0" : "100% 0",
+              transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
             <Box
               sx={{
                 display: "flex",
@@ -268,6 +306,20 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                 gap: 1,
                 alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
                 maxWidth: "80%",
+                animation:
+                  msg.sender === "ai"
+                    ? "messageAppear 0.5s cubic-bezier(0.4, 0, 0.2, 1)"
+                    : "none",
+                "@keyframes messageAppear": {
+                  "0%": {
+                    opacity: 0,
+                    transform: "translateY(10px) scale(0.98)",
+                  },
+                  "100%": {
+                    opacity: 1,
+                    transform: "translateY(0) scale(1)",
+                  },
+                },
               }}
             >
               <Typography
@@ -275,6 +327,12 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                 sx={{
                   color: "text.secondary",
                   alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+                  opacity: 0,
+                  animation: "fadeIn 0.3s ease forwards",
+                  "@keyframes fadeIn": {
+                    "0%": { opacity: 0 },
+                    "100%": { opacity: 1 },
+                  },
                 }}
               >
                 {msg.sender === "user" ? "You" : "Helix"}
@@ -292,6 +350,17 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                     msg.sender === "user"
                       ? "none"
                       : "1px solid rgba(255, 255, 255, 0.1)",
+                  boxShadow:
+                    msg.sender === "ai"
+                      ? "0 4px 20px rgba(151, 71, 255, 0.1)"
+                      : "none",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    boxShadow:
+                      msg.sender === "ai"
+                        ? "0 6px 24px rgba(151, 71, 255, 0.15)"
+                        : "none",
+                  },
                 }}
               >
                 {msg.sender === "ai" && parseSearchResults(msg.content) ? (
@@ -324,7 +393,9 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                           whiteSpace: "pre-line",
                         }}
                       >
-                        {msg.content.includes("Would you like to:") ? msg.content.split("Would you like to:")[1] : ""}
+                        {msg.content.includes("Would you like to:")
+                          ? msg.content.split("Would you like to:")[1]
+                          : ""}
                       </Typography>
                     </Box>
                   </>
