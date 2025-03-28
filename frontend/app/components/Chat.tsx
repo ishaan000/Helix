@@ -19,7 +19,7 @@ interface ChatProps {
 
 const EXAMPLE_PROMPTS = [
   "Generate a sequence for a Founding Engineer in SF",
-  "Draft a sequence for a Senior Frontend Engineer in Austin",
+  "Write an offer letter for the UX lead at SellScale.",
   "Create a personalized outreach for a UX Designer in Boston",
   "Generate a casual outreach for a Backend Engineer in Chicago",
   "Create a sequence for a Freelance Graphic Designer in Los Angeles",

@@ -6,7 +6,8 @@ from agents.tools import (
     generate_sequence,
     revise_step,
     change_tone,
-    add_step
+    add_step,
+    generate_recruiting_asset
 )
 from database.models import SequenceStep
 import json
@@ -49,23 +50,38 @@ def chat_with_openai(messages: list, session_id: int) -> dict:
                 change_tone(**args)
             elif name == "add_step":
                 add_step(**args)
+            elif name == "generate_recruiting_asset":
+                generate_recruiting_asset(**args)
 
         # After tool execution, fetch updated sequence
         print(f"Fetching sequence for session_id: {session_id}")  # Debug log
         steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
         print(f"Found {len(steps)} steps for session_id: {session_id}")  # Debug log
 
-        # Build a conversational follow-up
-        follow_up_prompt = f"""
-You just worked on outreach sequence using the function `{name}`.
-Now continue the conversation naturally:
+        if name == "generate_sequence":
+            follow_up_prompt = """You just created an outreach sequence using the `generate_sequence` tool.
 
-- Don't introduce yourself again.
-- Do NOT say "Hi" or "Hello".
-- Start by commenting on the sequence.
-- Offer to revise another step, tweak the tone, or regenerate something.
-- Keep it short, conversational, and useful.
-"""
+        Now respond naturally:
+        - Mention that the sequence is ready.
+        - Offer to tweak the tone, revise a step, or regenerate it.
+        - Don't repeat your intro or say hello.
+        - Keep it short, friendly, and helpful.
+        """
+        elif name == "generate_recruiting_asset":
+            follow_up_prompt = """You just helped the recruiter using the `generate_recruiting_asset` tool.
+
+        Now respond naturally:
+        - Mention that the message is ready.
+        - Ask if the user wants to update the tone, fix any sections, or regenerate it.
+        - Be proactive and conversational — avoid starting with 'Hi' or repeating your name.
+        """
+        else:
+            follow_up_prompt = f"""You just used the `{name}` tool.
+
+        Respond naturally:
+        - Mention what was done (e.g. revised a step, changed tone).
+        - Ask if there's anything else the user would like to tweak or explore.
+        """
 
         follow_up_response = client.chat.completions.create(
             model="gpt-4o",

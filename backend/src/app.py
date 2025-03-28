@@ -65,6 +65,8 @@ def create_app(testing=False):
                             - `revise_step` (requires step number and revision instruction)
                             - `change_tone` (requires tone and session_id)
                             - `add_step` (requires step content and session_id)
+                            
+                            - `generate_recruiting_asset`: Use this for one-off requests like “write an offer letter,” “thank you note,” or “follow-up email.” This tool handles any recruiting-related task from natural language instructions.
 
                         2. **Clarify Intent**: If the user’s request is unclear, ask a clarifying question before proceeding.
 

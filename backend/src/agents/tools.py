@@ -160,6 +160,31 @@ def add_step(session_id: int, step_content: str, position: Optional[int] = None)
     emit_sequence_update(session_id)
     return f"New step added at position {position}."
 
+def generate_recruiting_asset(task: str, session_id: int):
+    prompt = f"""
+You're a recruiting assistant. Based on the following instruction, generate a fully formatted message (email, letter, follow-up, etc). Be clear, professional, and concise.
+
+Task: {task}
+
+Format the result as if it will be sent to a candidate or hiring manager.
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{ "role": "user", "content": prompt }],
+        temperature=0.7
+    )
+
+    content = response.choices[0].message.content.strip()
+
+    # Store it as a single step
+    SequenceStep.query.filter_by(session_id=session_id).delete()
+    db.session.add(SequenceStep(session_id=session_id, step_number=1, content=content))
+    db.session.commit()
+    emit_sequence_update(session_id)
+
+    return "Recruiting asset generated successfully."
+
 
 tool_definitions = [
     {
@@ -225,5 +250,21 @@ tool_definitions = [
                 "required": ["step_content", "session_id"]
             }
         }
+    },
+    
+    {
+    "type": "function",
+    "function": {
+        "name": "generate_recruiting_asset",
+        "description": "Creates a single recruiting-related message (offer letter, thank you note, follow-up, etc) from a task description",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string", "description": "Instruction like 'Write a thank you email to Sarah after the interview'"},
+                "session_id": {"type": "integer"}
+            },
+            "required": ["task", "session_id"]
+        }
     }
+}
 ]
