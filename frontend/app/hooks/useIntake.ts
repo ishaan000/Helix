@@ -24,6 +24,7 @@ export const useRegister = () => {
     try {
       const id = await signUpUser(formData); // makes the POST call to /signup
       setUserId(id);
+      localStorage.setItem("user_id", id.toString());
       return id;
     } catch (err: unknown) {
       if (err instanceof Error) {

@@ -9,7 +9,7 @@ from agents.tools import (
     add_step,
     generate_recruiting_asset
 )
-from database.models import SequenceStep
+from database.models import SequenceStep, Session, User
 import json
 
 
@@ -17,12 +17,29 @@ load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def chat_with_openai(messages: list, session_id: int) -> dict:
+def chat_with_openai(messages: list, session_id: str) -> dict:
     print(f"\nProcessing chat with session_id: {session_id}")  # Debug log
-    
+
+    # Fetch the user context via the session ID
+    session = Session.query.get(session_id)
+    if session and session.user:
+        user = session.user
+        tone = user.preferences.get("tone", "professional") if user.preferences else "professional"
+        context_message = {
+            "role": "system",
+            "content": f"""
+    The user is a recruiter named {user.name} at {user.company}.
+    They are a {user.title} in the {user.preferences.get('industry', 'N/A')} industry.
+    Their preferred tone is {tone}.
+    Do NOT ask for this information again unless explicitly requested.
+    """
+        }
+        # Inject into the second position (after the main system prompt, before chat history)
+        messages.insert(1, context_message)
+        
     # Step 1: Send user + history messages and tool defs
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4",
         messages=messages,
         tools=tool_definitions,
         tool_choice="auto"
@@ -35,23 +52,28 @@ def chat_with_openai(messages: list, session_id: int) -> dict:
             name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
             
-            # Ensure session_id is included in the arguments
-            if "session_id" not in args:
-                args["session_id"] = session_id
+            # Always use the correct session_id from the chat endpoint
+            args["session_id"] = session_id
             
             print(f"→ Tool called: {name}")
             print(f"→ Arguments: {json.dumps(args, indent=2)}")
 
-            if name == "generate_sequence":
-                generate_sequence(**args)
-            elif name == "revise_step":
-                revise_step(**args)
-            elif name == "change_tone":
-                change_tone(**args)
-            elif name == "add_step":
-                add_step(**args)
-            elif name == "generate_recruiting_asset":
-                generate_recruiting_asset(**args)
+            try:
+                if name == "generate_sequence":
+                    result = generate_sequence(**args)
+                elif name == "revise_step":
+                    result = revise_step(**args)
+                elif name == "change_tone":
+                    result = change_tone(**args)
+                elif name == "add_step":
+                    result = add_step(**args)
+                elif name == "generate_recruiting_asset":
+                    result = generate_recruiting_asset(**args)
+                
+                print(f"Tool execution result: {result}")  # Debug log
+            except Exception as e:
+                print(f"Error executing tool {name}: {str(e)}")  # Debug log
+                continue
 
         # After tool execution, fetch updated sequence
         print(f"Fetching sequence for session_id: {session_id}")  # Debug log
@@ -81,28 +103,24 @@ def chat_with_openai(messages: list, session_id: int) -> dict:
         Respond naturally:
         - Mention what was done (e.g. revised a step, changed tone).
         - Ask if there's anything else the user would like to tweak or explore.
+        - Keep it short and friendly.
         """
 
+        # Step 3: Send follow-up prompt to get natural response
         follow_up_response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{ "role": "user", "content": follow_up_prompt }]
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": follow_up_prompt},
+                {"role": "user", "content": "What happened?"}
+            ]
         )
 
-        follow_up = follow_up_response.choices[0].message.content
-
-        sequence_data = [
-            {"step_number": step.step_number, "content": step.content}
-            for step in steps
-        ]
-        print(f"Returning sequence with {len(sequence_data)} steps")  # Debug log
+        sequence_data = [{"step_number": step.step_number, "content": step.content} for step in steps]
+        print(f"Returning sequence data: {sequence_data}")  # Debug log
 
         return {
-            "reply": follow_up,
+            "reply": follow_up_response.choices[0].message.content,
             "sequence": sequence_data
         }
 
-    # Step 4: Otherwise, return plain text response
-    return {
-        "reply": reply.content,
-        "sequence": []  # Return empty array instead of None
-    }
+    return {"reply": reply.content}

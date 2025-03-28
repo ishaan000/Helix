@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { sendChatMessage } from "../utils/api";
-import { useEffect } from "react";
 import io from "socket.io-client";
 
-const socket = io(process.env.REACT_APP_SOCKET_URL || "http://localhost:5001");
+const socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001");
+
 export interface ChatMessage {
   sender: "user" | "ai";
   content: string;
+  timestamp?: string;
 }
 
 export interface SequenceStep {
@@ -19,39 +20,113 @@ export type LoadingStatus = {
   step?: string;
 };
 
-export const useChat = () => {
+export const useChat = (sessionId: string | null) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sequence, setSequence] = useState<SequenceStep[]>([]);
   const [status, setStatus] = useState<LoadingStatus>({ state: null });
-  const [sessionId] = useState(1); // keep it simple for now
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(
+    sessionId
+  );
 
+  // Create a new session if needed
+  const createSession = async () => {
+    try {
+      const user_id = localStorage.getItem("user_id");
+      if (!user_id) throw new Error("No user_id found");
+
+      const res = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+        }/sessions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id,
+            session_title: "New Chat",
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Failed to create session: ${error}`);
+      }
+
+      const data = await res.json();
+      setCurrentSessionId(data.session_id);
+      return data.session_id;
+    } catch (error) {
+      console.error("Error creating session:", error);
+      throw error;
+    }
+  };
+
+  // 🔄 Fetch existing messages and sequence on session change
   useEffect(() => {
+    if (!currentSessionId) return;
+
+    const fetchData = async () => {
+      try {
+        // Fetch messages
+        const messagesRes = await fetch(
+          `${
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+          }/sessions/${currentSessionId}/messages`
+        );
+        if (!messagesRes.ok) throw new Error("Failed to fetch messages");
+        const messagesData = await messagesRes.json();
+        setMessages(messagesData);
+
+        // Fetch sequence
+        const sequenceRes = await fetch(
+          `${
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+          }/sequence/${currentSessionId}`
+        );
+        if (sequenceRes.ok) {
+          const sequenceData = await sequenceRes.json();
+          setSequence(sequenceData);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, [currentSessionId]);
+
+  // 🔔 WebSocket listener for sequence updates
+  useEffect(() => {
+    if (!currentSessionId) return;
+
     const handleSequenceUpdate = (data: {
-      session_id: number;
+      session_id: string;
       sequence: SequenceStep[];
     }) => {
-      if (data.session_id === sessionId) {
+      if (data.session_id === currentSessionId) {
         console.log("🔁 Real-time update received", data);
         setSequence(data.sequence);
       }
     };
 
     socket.on("sequence_updated", handleSequenceUpdate);
-
     return () => {
       socket.off("sequence_updated", handleSequenceUpdate);
     };
-  }, [sessionId]);
+  }, [currentSessionId]);
 
   const sendMessage = async (content: string) => {
-    setMessages((prev) => [...prev, { sender: "user", content }]);
-
     try {
+      // Create a new session if none exists
+      const sessionIdToUse = currentSessionId || (await createSession());
+      if (!sessionIdToUse) throw new Error("Failed to create or get session");
+
+      setMessages((prev) => [...prev, { sender: "user", content }]);
       setStatus({ state: "thinking", step: "Analyzing your request" });
 
-      const data = await sendChatMessage(content, sessionId);
+      const data = await sendChatMessage(content, sessionIdToUse);
 
-      // ✅ Case 1: No sequence, just a regular reply
       if (!data.sequence) {
         setMessages((prev) => [
           ...prev,
@@ -61,7 +136,6 @@ export const useChat = () => {
         return;
       }
 
-      // ✅ Case 2: Sequence was generated
       const showGenerationSteps = async () => {
         setStatus({ state: "generating", step: "Identifying key milestones" });
         await new Promise((res) => setTimeout(res, 1000));
@@ -76,29 +150,31 @@ export const useChat = () => {
         await new Promise((res) => setTimeout(res, 1000));
 
         setSequence(data.sequence);
-
-        setStatus({ state: "processing", step: "Finalizing sequence" });
-        await new Promise((res) => setTimeout(res, 800));
-
-        setStatus({ state: null });
-
-        // ✅ Only now, after the sequence shows, drop follow-up message
         setMessages((prev) => [
           ...prev,
           { sender: "ai", content: data.response },
         ]);
+        setStatus({ state: null });
       };
 
-      await showGenerationSteps();
-    } catch (e) {
-      console.error("Error in sendMessage:", e);
+      showGenerationSteps();
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setStatus({ state: null });
       setMessages((prev) => [
         ...prev,
-        { sender: "ai", content: "Sorry, something went wrong!" },
+        {
+          sender: "ai",
+          content: "I apologize, but I encountered an error. Please try again.",
+        },
       ]);
-      setStatus({ state: null });
     }
   };
 
-  return { messages, sequence, sendMessage, status };
+  return {
+    messages,
+    sequence,
+    status,
+    sendMessage,
+  };
 };

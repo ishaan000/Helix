@@ -3,10 +3,33 @@
 import { Box, Typography } from "@mui/material";
 import Chat from "../../components/Chat";
 import Workspace from "../../components/Workspace";
+import ChatSidebar from "../../components/ChatSidebar";
 import { useChat } from "../../hooks/useChat";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function ChatPage() {
-  const { messages, sequence, sendMessage, status } = useChat();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const sessionId = searchParams.get("session");
+  const { messages, sequence, sendMessage, status } = useChat(sessionId);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
+
+  // Check for user authentication
+  useEffect(() => {
+    const user_id = localStorage.getItem("user_id");
+    if (!user_id) {
+      console.log("No user_id found, redirecting to intake");
+      router.push("/intake");
+    }
+  }, [router]);
+
+  // Auto-minimize sidebar when workspace opens
+  useEffect(() => {
+    if (sequence.length > 0) {
+      setIsSidebarExpanded(false);
+    }
+  }, [sequence]);
 
   return (
     <Box
@@ -16,19 +39,21 @@ export default function ChatPage() {
         width: "100vw",
         overflow: "hidden",
         background: "linear-gradient(145deg, #0A0A0F 0%, #12121F 100%)",
-        justifyContent: "center",
       }}
     >
-      {/* Main Container */}
+      <ChatSidebar
+        onSelect={(id) => router.push(`/chat?session=${id}`)}
+        isExpanded={isSidebarExpanded}
+        onToggleExpand={() => setIsSidebarExpanded(!isSidebarExpanded)}
+      />
+
       <Box
         sx={{
-          width: sequence.length > 0 ? "100%" : "800px",
-          height: "100%",
+          flex: 1,
           display: "flex",
-          transition: "all 0.5s ease-in-out",
+          width: "100%",
         }}
       >
-        {/* Chat Panel */}
         <Box
           sx={{
             width: sequence.length > 0 ? "35%" : "100%",
@@ -65,14 +90,8 @@ export default function ChatPage() {
           <Chat messages={messages} sendMessage={sendMessage} status={status} />
         </Box>
 
-        {/* Workspace Panel */}
         {sequence.length > 0 && (
-          <Box
-            sx={{
-              width: "65%",
-              overflow: "hidden",
-            }}
-          >
+          <Box sx={{ width: "65%", overflow: "hidden" }}>
             <Workspace sequence={sequence} />
           </Box>
         )}

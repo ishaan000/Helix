@@ -1,5 +1,5 @@
-export const sendChatMessage = async (message: string, sessionId = 1) => {
-  const apiUrl = process.env.API_URL || "http://localhost:5001";
+export const sendChatMessage = async (message: string, sessionId: string) => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
   const res = await fetch(`${apiUrl}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -25,7 +25,7 @@ export const signUpUser = async (formData: {
   industry: string;
   tone: string;
 }) => {
-  const apiUrl = process.env.API_URL || "http://localhost:5001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
   const res = await fetch(`${apiUrl}/signup`, {
     method: "POST",

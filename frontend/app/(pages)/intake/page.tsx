@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRegister } from "../../hooks/useRegister";
+import { useRegister } from "../../hooks/useIntake";
 import {
   Box,
   TextField,
@@ -15,7 +15,7 @@ import {
 
 const tones = ["professional", "casual", "bold", "friendly", "formal"];
 
-export default function RegisterPage() {
+export default function IntakePage() {
   const router = useRouter();
   const { register, loading, error } = useRegister();
 
