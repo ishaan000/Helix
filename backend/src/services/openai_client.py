@@ -7,7 +7,9 @@ from agents.tools import (
     revise_step,
     change_tone,
     add_step,
-    generate_recruiting_asset
+    generate_recruiting_asset,
+    search_and_analyze_professionals,
+    generate_personalized_outreach
 )
 from database.models import SequenceStep, Session, User
 import json
@@ -43,10 +45,10 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
         tool_choice="auto"
     )
 
-    reply = response.choices[0].message
+    message = response.choices[0].message
     # Step 2: If tool is called, extract name + arguments
-    if reply.tool_calls:
-        for tool_call in reply.tool_calls:
+    if message.tool_calls:
+        for tool_call in message.tool_calls:
             name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
             
@@ -67,6 +69,10 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
                     result = add_step(**args)
                 elif name == "generate_recruiting_asset":
                     result = generate_recruiting_asset(**args)
+                elif name == "search_and_analyze_professionals":
+                    result = search_and_analyze_professionals(**args)
+                elif name == "generate_personalized_outreach":
+                    result = generate_personalized_outreach(**args)
                 
                 print(f"Tool execution result: {result}")  # Debug log
             except Exception as e:
@@ -95,6 +101,18 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
         - Ask if the user wants to update the tone, fix any sections, or regenerate it.
         - Be proactive and conversational — avoid starting with 'Hi' or repeating your name.
         """
+        elif name == "search_and_analyze_professionals":
+            follow_up_prompt = """You just performed a professional search using the `search_and_analyze_professionals` tool.
+
+        Now respond naturally:
+        - Acknowledge that you've found relevant professionals.
+        - Ask if they'd like to:
+          - Generate a personalized outreach sequence for any of these professionals
+          - Get more details about specific professionals
+          - Refine the search with different criteria
+        - Keep it short and friendly.
+        - Don't repeat the search results (they're already displayed).
+        """
         else:
             follow_up_prompt = f"""You just used the `{name}` tool.
 
@@ -116,9 +134,16 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
         sequence_data = [{"step_number": step.step_number, "content": step.content} for step in steps]
         print(f"Returning sequence data: {sequence_data}")  # Debug log
 
+        # If this was a search, include the search results in the response
+        if name == "search_and_analyze_professionals":
+            return {
+                "response": result + "\n\n" + follow_up_response.choices[0].message.content,
+                "sequence": sequence_data
+            }
+
         return {
-            "reply": follow_up_response.choices[0].message.content,
+            "response": follow_up_response.choices[0].message.content,
             "sequence": sequence_data
         }
 
-    return {"reply": reply.content}
+    return {"response": message.content}

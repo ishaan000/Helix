@@ -5,11 +5,14 @@ from dotenv import load_dotenv
 import json
 import re
 from typing import Dict, Any, Optional
+from .web_search import search_professionals, get_professional_details
 
 from socketio_instance import socketio  # ✅ import safely
+import logging
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger = logging.getLogger(__name__)
 
 def get_sequence_data(session_id: str):
     steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
@@ -117,7 +120,6 @@ Respond in JSON format as a list like:
         print(f"Error in generate_sequence: {str(e)}")  # Debug log
         return f"Error generating sequence: {str(e)}"
 
-    
 def get_user_context(session_id: str) -> str:
     session = Session.query.get(session_id)
     if not session or not session.user:
@@ -151,7 +153,6 @@ Rewritten message:"""
     emit_sequence_update(session_id)
     return f"Step {step_number} revised."
 
-
 def change_tone(session_id: str, tone: str) -> str:
     steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
     if not steps:
@@ -173,7 +174,6 @@ Rewritten message:"""
     db.session.commit()
     emit_sequence_update(session_id)
     return f"All steps updated to have a more {tone} tone."
-
 
 def add_step(session_id: str, step_content: str, position: Optional[int] = None) -> str:
     steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
@@ -240,6 +240,104 @@ Format the result as if it will be sent to a candidate or hiring manager.
 
     return "Recruiting asset generated successfully."
 
+def search_and_analyze_professionals(session_id: str, query: str, location: Optional[str] = None) -> str:
+    """
+    Search for professionals and generate a summary of findings.
+    
+    Args:
+        session_id (str): The current session ID
+        query (str): The search query (e.g., "top designers", "founding engineers")
+        location (Optional[str]): Location to search in
+    
+    Returns:
+        str: A formatted response with search results and analysis
+    """
+    try:
+        logger.info(f"Starting search for query: {query}, location: {location}")
+        # Get search results
+        results = search_professionals(query, location)
+        logger.info(f"Search results: {results}")
+        
+        if not results or not results.get("professionals"):
+            logger.warning("No professionals found in results")
+            return "I couldn't find any professionals matching your search criteria."
+        
+        # Format the response
+        response = f"I found {len(results['professionals'])} professionals matching your search for '{query}'"
+        if location:
+            response += f" in {location}"
+        response += ":\n\n"
+        
+        for i, prof in enumerate(results["professionals"], 1):
+            if isinstance(prof, dict):
+                response += f"{i}. {prof.get('name', 'Unknown')}\n"
+                response += f"   Source: {prof.get('source', 'Unknown')}\n"
+                response += f"   {prof.get('snippet', 'No description available')}\n\n"
+            else:
+                logger.warning(f"Invalid professional data format: {prof}")
+        
+        # Store the search results in the session for later use
+        session = Session.query.get(session_id)
+        if session:
+            session.search_results = json.dumps(results)
+            db.session.commit()
+            logger.info("Successfully stored search results in session")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in search_and_analyze_professionals: {str(e)}", exc_info=True)
+        return f"An error occurred while searching: {str(e)}"
+
+def generate_personalized_outreach(profile_url: str, session_id: str) -> str:
+    """
+    Generate a personalized outreach message based on a professional's profile.
+    
+    Args:
+        profile_url (str): URL of the professional's profile
+        session_id (str): The current session ID
+    
+    Returns:
+        str: A personalized outreach message
+    """
+    try:
+        # Get professional details
+        details = get_professional_details(profile_url)
+        
+        # Get user context
+        session = Session.query.get(session_id)
+        user_name = session.user.name if session and session.user else "the recruiter"
+        company_name = session.user.company if session and session.user else "the company"
+        
+        # Generate personalized message using OpenAI
+        prompt = f"""
+        Generate a personalized outreach message for a professional based on their profile:
+        Profile URL: {profile_url}
+        Profile Content: {details['content']}
+        
+        The message should be from {user_name} at {company_name} and should:
+        1. Reference specific details from their profile
+        2. Show genuine interest in their work
+        3. Be concise but personal
+        4. Include a clear value proposition
+        
+        Format the message in a professional but conversational tone.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an expert recruiter crafting personalized outreach messages."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"An error occurred while generating the outreach message: {str(e)}"
 
 tool_definitions = [
     {
@@ -320,5 +418,36 @@ tool_definitions = [
                 "required": ["task", "session_id"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_and_analyze_professionals",
+            "description": "Searches for professionals based on role and location, and provides a detailed analysis",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "The session ID as a string UUID"},
+                    "query": {"type": "string", "description": "The search query (e.g., 'top designers', 'founding engineers')"},
+                    "location": {"type": "string", "description": "Optional. Location to search in (e.g., 'San Francisco')"}
+                },
+                "required": ["session_id", "query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_personalized_outreach",
+            "description": "Generates a personalized outreach message for a specific professional based on their profile",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "The session ID as a string UUID"},
+                    "profile_url": {"type": "string", "description": "The URL of the professional's profile"}
+                },
+                "required": ["session_id", "profile_url"]
+            }
+        }
     }
-]
+] 

@@ -188,7 +188,7 @@ def create_app(testing=False):
             # Send to OpenAI
             ai_result = chat_with_openai(messages, session_id=session_id)
 
-            ai_response_text = ai_result["reply"]
+            ai_response_text = ai_result["response"]
             ai_sequence = ai_result.get("sequence")
 
             # Store AI message in DB

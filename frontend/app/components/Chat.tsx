@@ -6,10 +6,13 @@ import {
   Button,
   Fade,
   Chip,
+  Link,
+  Divider,
 } from "@mui/material";
 import { useState } from "react";
 import { ChatMessage, LoadingStatus } from "../hooks/useChat";
 import SendIcon from "@mui/icons-material/Send";
+import SearchIcon from "@mui/icons-material/Search";
 
 interface ChatProps {
   messages: ChatMessage[];
@@ -17,13 +20,76 @@ interface ChatProps {
   status: LoadingStatus;
 }
 
+interface SearchResult {
+  name: string;
+  source: string;
+  snippet: string;
+  link?: string;
+}
+
 const EXAMPLE_PROMPTS = [
   "Generate a sequence for a Founding Engineer in SF",
+  "Search for a UX Designer in SF",
+
   "Write an offer letter for the UX lead at SellScale.",
-  "Create a personalized outreach for a UX Designer in Boston",
   "Generate a casual outreach for a Backend Engineer in Chicago",
-  "Create a sequence for a Freelance Graphic Designer in Los Angeles",
+  "Search for a Software Engineer in Austin",
 ];
+
+const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        p: 2,
+        background: "rgba(151, 71, 255, 0.05)",
+        borderRadius: "12px",
+        border: "1px solid rgba(151, 71, 255, 0.1)",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <SearchIcon sx={{ color: "#9747FF" }} />
+        <Typography variant="subtitle2" sx={{ color: "#9747FF" }}>
+          Search Results
+        </Typography>
+      </Box>
+      {results.map((result, index) => (
+        <Box key={index} sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+            {result.name}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Source: {result.source}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {result.snippet}
+          </Typography>
+          {result.link && (
+            <Link
+              href={result.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                display: "inline-block",
+                mt: 1,
+                color: "#9747FF",
+                textDecoration: "none",
+                "&:hover": {
+                  textDecoration: "underline",
+                },
+              }}
+            >
+              View Profile →
+            </Link>
+          )}
+          {index < results.length - 1 && (
+            <Divider sx={{ my: 2, borderColor: "rgba(151, 71, 255, 0.1)" }} />
+          )}
+        </Box>
+      ))}
+    </Box>
+  );
+};
 
 export default function Chat({ messages, sendMessage, status }: ChatProps) {
   const [input, setInput] = useState("");
@@ -105,6 +171,34 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     );
   };
 
+  const parseSearchResults = (content: string): SearchResult[] | null => {
+    // Check if the content contains search results
+    if (!content.includes("professionals matching your search")) return null;
+
+    const results: SearchResult[] = [];
+    const lines = content.split("\n");
+    let currentResult: Partial<SearchResult> = {};
+
+    for (const line of lines) {
+      if (line.match(/^\d+\./)) {
+        if (Object.keys(currentResult).length > 0) {
+          results.push(currentResult as SearchResult);
+        }
+        currentResult = { name: line.replace(/^\d+\.\s*/, "") };
+      } else if (line.startsWith("   Source:")) {
+        currentResult.source = line.replace("   Source:", "").trim();
+      } else if (line.startsWith("   ")) {
+        currentResult.snippet = line.trim();
+      }
+    }
+
+    if (Object.keys(currentResult).length > 0) {
+      results.push(currentResult as SearchResult);
+    }
+
+    return results;
+  };
+
   return (
     <Box
       sx={{
@@ -181,6 +275,11 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                 >
                   {msg.content}
                 </Typography>
+                {msg.sender === "ai" && parseSearchResults(msg.content) && (
+                  <SearchResultsBox
+                    results={parseSearchResults(msg.content)!}
+                  />
+                )}
               </Paper>
             </Box>
           </Fade>
