@@ -23,7 +23,7 @@ export const signUpUser = async (formData: {
   company: string;
   title: string;
   industry: string;
-  tone: string;
+  companySize: string;
 }) => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
@@ -32,7 +32,9 @@ export const signUpUser = async (formData: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...formData,
-      preferences: { tone: formData.tone },
+      preferences: {
+        companySize: formData.companySize,
+      },
     }),
   });
 

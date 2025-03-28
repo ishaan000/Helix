@@ -13,7 +13,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 
-const tones = ["professional", "casual", "bold", "friendly", "formal"];
+const companySizes = ["startup", "small", "medium", "large", "enterprise"];
 
 export default function IntakePage() {
   const router = useRouter();
@@ -25,18 +25,22 @@ export default function IntakePage() {
     company: "",
     title: "",
     industry: "",
-    tone: "professional",
+    companySize: "startup",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async () => {
     const userId = await register(form);
     if (userId) {
-      // Optionally: save userId to localStorage or context here
-      router.push("/chat"); // or wherever your main chat page lives
+      router.push("/chat");
     }
   };
 
@@ -85,14 +89,14 @@ export default function IntakePage() {
         />
         <TextField
           select
-          label="Preferred Tone"
-          name="tone"
-          value={form.tone}
+          label="Company Size"
+          name="companySize"
+          value={form.companySize}
           onChange={handleChange}
         >
-          {tones.map((tone) => (
-            <MenuItem key={tone} value={tone}>
-              {tone.charAt(0).toUpperCase() + tone.slice(1)}
+          {companySizes.map((size) => (
+            <MenuItem key={size} value={size}>
+              {size.charAt(0).toUpperCase() + size.slice(1)}
             </MenuItem>
           ))}
         </TextField>

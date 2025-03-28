@@ -24,13 +24,11 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
     session = Session.query.get(session_id)
     if session and session.user:
         user = session.user
-        tone = user.preferences.get("tone", "professional") if user.preferences else "professional"
         context_message = {
             "role": "system",
             "content": f"""
-    The user is a recruiter named {user.name} at {user.company}.
-    They are a {user.title} in the {user.preferences.get('industry', 'N/A')} industry.
-    Their preferred tone is {tone}.
+    The user is a recruiter named {user.name} at {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
+    They are a {user.title} in the {user.industry} industry.
     Do NOT ask for this information again unless explicitly requested.
     """
         }

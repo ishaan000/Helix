@@ -7,7 +7,7 @@ interface RegisterFormData {
   company: string;
   title: string;
   industry: string;
-  tone: string;
+  companySize: string;
 }
 
 export const useRegister = () => {

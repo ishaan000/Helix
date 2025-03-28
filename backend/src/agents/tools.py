@@ -1,4 +1,4 @@
-from database.models import SequenceStep, db
+from database.models import SequenceStep, db, Session
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
@@ -35,8 +35,13 @@ def generate_sequence(role: str, location: str, session_id: str, step_count: Opt
     if validation_error:
         return f"{validation_error}"
 
+    # Get user info from session
+    session = Session.query.get(session_id)
+    user_name = session.user.name if session and session.user else "the recruiter"
+
     base_prompt = f"""
 Generate an outreach sequence for recruiting a {role} based in {location}.
+The messages should be written from {user_name}'s perspective.
 Respond in JSON format as a list like:
 [
   {{ "step_number": 1, "content": "..." }},
@@ -111,12 +116,24 @@ Respond in JSON format as a list like:
         return f"Error generating sequence: {str(e)}"
 
     
+def get_user_context(session_id: str) -> str:
+    session = Session.query.get(session_id)
+    if not session or not session.user:
+        return ""
+    user = session.user
+    return f"""
+The messages should be written from {user.name}'s perspective at {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
+{user.name} is a {user.title} in the {user.industry} industry.
+"""
+
 def revise_step(session_id: str, step_number: int, new_instruction: str) -> str:
     step = SequenceStep.query.filter_by(session_id=session_id, step_number=step_number).first()
     if not step:
         return f"Step {step_number} not found."
 
+    user_context = get_user_context(session_id)
     prompt = f"""Rewrite this message to reflect the following instruction:
+{user_context}
 Instruction: {new_instruction}
 Original message: {step.content}
 Rewritten message:"""
@@ -138,8 +155,12 @@ def change_tone(session_id: str, tone: str) -> str:
     if not steps:
         return "No steps found for this session."
 
+    user_context = get_user_context(session_id)
     for step in steps:
-        prompt = f"Rewrite the following message to be more {tone}:\n\n{step.content}"
+        prompt = f"""Rewrite the following message to be more {tone}:
+{user_context}
+Original message: {step.content}
+Rewritten message:"""
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[{ "role": "user", "content": prompt }],
@@ -177,9 +198,10 @@ def add_step(session_id: str, step_content: str, position: Optional[int] = None)
     return f"New step added at position {position}."
 
 def generate_recruiting_asset(task: str, session_id: str):
+    user_context = get_user_context(session_id)
     prompt = f"""
-You're a recruiting assistant. Based on the following instruction, generate a fully formatted message (email, letter, follow-up, etc). Be clear, professional, and concise.
-
+You're a recruiting assistant. Based on the following instruction, generate a fully formatted message (email, letter, follow-up, etc).
+{user_context}
 Task: {task}
 
 Format the result as if it will be sent to a candidate or hiring manager.
