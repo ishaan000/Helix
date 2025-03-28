@@ -154,11 +154,19 @@ export const useChat = (sessionId: string | null) => {
         });
         await new Promise((res) => setTimeout(res, 1000));
 
+        // Update both sequence and messages in a single state update
         setSequence(data.sequence);
-        setMessages((prev) => [
-          ...prev,
-          { sender: "ai", content: data.response },
-        ]);
+        setMessages((prev) => {
+          // Check if the AI message is already in the state
+          const lastMessage = prev[prev.length - 1];
+          if (
+            lastMessage?.sender === "ai" &&
+            lastMessage?.content === data.response
+          ) {
+            return prev;
+          }
+          return [...prev, { sender: "ai", content: data.response }];
+        });
         setStatus({ state: null });
       };
 

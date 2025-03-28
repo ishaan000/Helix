@@ -29,11 +29,10 @@ interface SearchResult {
 
 const EXAMPLE_PROMPTS = [
   "Generate a sequence for a Founding Engineer in SF",
-  "Search for a UX Designer in SF",
-
+  "Search for a UX Designer in SF procient in Figma",
   "Write an offer letter for the UX lead at SellScale.",
   "Generate a casual outreach for a Backend Engineer in Chicago",
-  "Search for a Software Engineer in Austin",
+  "Search for a Software Engineer in Austin that knows React and Node",
 ];
 
 const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
@@ -208,7 +207,17 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     const lines = content.split("\n");
     let currentResult: Partial<SearchResult> = {};
 
+    // Find the start of search results
+    let startIndex = 0;
     for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes("professionals matching your search")) {
+        startIndex = i;
+        break;
+      }
+    }
+
+    // Process only the search results section
+    for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i];
 
       // Find where suggestions start
@@ -220,8 +229,8 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
         break;
       }
 
-      // Skip the "Would you like me to" line
-      if (line.includes("Would you like me to")) {
+      // Skip only the initial count line
+      if (line.includes("professionals matching your search")) {
         continue;
       }
 
@@ -393,9 +402,7 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                           whiteSpace: "pre-line",
                         }}
                       >
-                        {msg.content.includes("Would you like to:")
-                          ? msg.content.split("Would you like to:")[1]
-                          : ""}
+                        {msg.content.split("Would you like to:")[1]}
                       </Typography>
                     </Box>
                   </>
