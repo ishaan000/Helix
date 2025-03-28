@@ -38,10 +38,12 @@ def generate_sequence(role: str, location: str, session_id: str, step_count: Opt
     # Get user info from session
     session = Session.query.get(session_id)
     user_name = session.user.name if session and session.user else "the recruiter"
+    company_name = session.user.company if session and session.user else "the company"
 
     base_prompt = f"""
 Generate an outreach sequence for recruiting a {role} based in {location}.
-The messages should be written from {user_name}'s perspective.
+The messages should be written from {user_name}'s perspective at {company_name}.
+Make sure to mention {company_name} in the messages to establish credibility.
 Respond in JSON format as a list like:
 [
   {{ "step_number": 1, "content": "..." }},
@@ -179,13 +181,28 @@ def add_step(session_id: str, step_content: str, position: Optional[int] = None)
     if position is None or position > len(steps):
         position = len(steps) + 1
 
+    # Get user context
+    user_context = get_user_context(session_id)
+    prompt = f"""Create a new message that matches the style and context of the existing sequence:
+{user_context}
+Original content: {step_content}
+New message:"""
+
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{ "role": "user", "content": prompt }],
+        temperature=0.7
+    )
+
+    new_content = response.choices[0].message.content.strip()
+
     # Shift step numbers at and after the insertion point
     for step in steps:
         if step.step_number >= position:
             step.step_number += 1
 
     # Add the new step
-    new_step = SequenceStep(session_id=session_id, step_number=position, content=step_content)
+    new_step = SequenceStep(session_id=session_id, step_number=position, content=new_content)
     db.session.add(new_step)
 
     # Reorder everything to ensure consistent step numbering
