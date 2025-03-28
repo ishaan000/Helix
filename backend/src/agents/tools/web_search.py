@@ -117,8 +117,6 @@ def search_professionals(
             "professionals": [],
             "total_found": 0
         }
-
-def search_github(query: str, location: Optional[str] = None) -> List[Dict]:
     """Search GitHub for developers."""
     try:
         headers = {

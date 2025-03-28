@@ -31,8 +31,8 @@ def validate_sequence_params(role: str, location: str) -> Optional[str]:
         return "Role and location exceed maximum length limits"
     return None
 
-def generate_sequence(role: str, location: str, session_id: str, step_count: Optional[int] = None) -> str:
-    print(f"\nGenerating sequence for role: {role}, location: {location}, session_id: {session_id}")
+def generate_sequence(role: str, location: str, session_id: str, step_count: Optional[int] = None, profile_url: Optional[str] = None) -> str:
+    print(f"\nGenerating sequence for role: {role}, location: {location}, session_id: {session_id}, profile_url: {profile_url}")
 
     validation_error = validate_sequence_params(role, location)
     if validation_error:
@@ -43,15 +43,50 @@ def generate_sequence(role: str, location: str, session_id: str, step_count: Opt
     user_name = session.user.name if session and session.user else "the recruiter"
     company_name = session.user.company if session and session.user else "the company"
 
+    # Get professional details if profile_url is provided
+    professional_context = ""
+    if profile_url:
+        try:
+            details = get_professional_details(profile_url)
+            professional_context = f"""
+            Professional Details:
+            - Profile: {profile_url}
+            - Current Position: {details.get('title', 'N/A')}
+            - Background: {details.get('content', 'N/A')}
+            
+            Use these details to personalize the outreach sequence. Reference specific aspects of their experience and background.
+            """
+        except Exception as e:
+            logger.error(f"Error fetching professional details: {str(e)}")
+            professional_context = ""
+
     base_prompt = f"""
-Generate an outreach sequence for recruiting a {role} based in {location}.
+Generate a professional outreach sequence for recruiting a {role} based in {location}.
 The messages should be written from {user_name}'s perspective at {company_name}.
 Make sure to mention {company_name} in the messages to establish credibility.
+
+Follow this structure for each step:
+1. Initial Outreach: Introduce yourself, mention how you found them, and highlight specific aspects of their background that caught your attention. Explain why you're reaching out and what makes them a great fit for the role at {company_name}. Include specific details about the role and opportunity.
+
+2. Follow-up: If no response, send a brief, friendly follow-up that adds value - perhaps sharing more about {company_name}'s culture or the team they'd be working with. Make it easy to respond with a clear next step.
+
+3. Final Touch: If still no response, send one final message that's concise and direct, emphasizing the unique opportunity and asking for a brief conversation.
+
+{professional_context}
+
 Respond in JSON format as a list like:
 [
   {{ "step_number": 1, "content": "..." }},
-  ...
+  {{ "step_number": 2, "content": "..." }},
+  {{ "step_number": 3, "content": "..." }}
 ]
+
+Each message should be complete and self-contained. Make sure to:
+- Keep messages concise but personal
+- Reference specific details from their background
+- Include clear next steps
+- Maintain a professional yet conversational tone
+- Avoid generic language
 """
     if step_count:
         base_prompt = f"Generate a {step_count}-step outreach sequence for a {role} in {location}.\n" + base_prompt
@@ -62,11 +97,12 @@ Respond in JSON format as a list like:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a recruiting assistant that creates candidate outreach sequences. Generate professional and engaging outreach messages."
+                    "content": "You are a recruiting assistant that creates personalized candidate outreach sequences. Generate professional and engaging outreach messages that follow a clear structure and reference specific details from the candidate's background when available. Each message should be complete and self-contained."
                 },
                 {"role": "user", "content": base_prompt}
             ],
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=2000  # Ensure we get complete responses
         )
 
         content = response.choices[0].message.content
@@ -99,25 +135,25 @@ Respond in JSON format as a list like:
                     content=step["content"]
                 )
                 db.session.add(new_step)
-                print(f"Adding step {step['step_number']} for session {session_id}")  # Debug log
+                print(f"Adding step {step['step_number']} for session {session_id}")
 
             db.session.commit()
-            print(f"Successfully saved {len(steps_json)} steps for session {session_id}")  # Debug log
+            print(f"Successfully saved {len(steps_json)} steps for session {session_id}")
 
             # Verify the steps were saved
             saved_steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
-            print(f"Verified {len(saved_steps)} steps in database for session {session_id}")  # Debug log
+            print(f"Verified {len(saved_steps)} steps in database for session {session_id}")
 
             emit_sequence_update(session_id)
             return "Outreach sequence generated and saved successfully."
 
         except Exception as e:
             db.session.rollback()
-            print(f"Database error while saving sequence: {str(e)}")  # Debug log
+            print(f"Database error while saving sequence: {str(e)}")
             return f"Error saving sequence to database: {str(e)}"
 
     except Exception as e:
-        print(f"Error in generate_sequence: {str(e)}")  # Debug log
+        print(f"Error in generate_sequence: {str(e)}")
         return f"Error generating sequence: {str(e)}"
 
 def get_user_context(session_id: str) -> str:
@@ -303,7 +339,7 @@ def search_and_analyze_professionals(
             response += f"Profile: {prof['link']}\n\n"
         
         response += "\nWould you like to:\n"
-        response += "1. Generate a personalized outreach sequence for any of these professionals\n"
+        response += "1. Generate a personalized outreach sequence for any of these professionals (I'll use their profile details to create a tailored sequence)\n"
         response += "2. Get more details about specific professionals\n"
         response += "3. Refine the search with different criteria"
         
@@ -368,14 +404,15 @@ tool_definitions = [
         "type": "function",
         "function": {
             "name": "generate_sequence",
-            "description": "Generates a candidate outreach sequence based on role and location",
+            "description": "Generates a candidate outreach sequence based on role and location, optionally personalized for a specific professional",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "role": {"type": "string", "description": "The role being hired for"},
                     "location": {"type": "string", "description": "Where the job is based"},
                     "step_count": {"type": "integer", "description": "Optional. Number of outreach steps to include"},
-                    "session_id": {"type": "string", "description": "The session ID as a string UUID"}
+                    "session_id": {"type": "string", "description": "The session ID as a string UUID"},
+                    "profile_url": {"type": "string", "description": "Optional. URL of the professional's profile to personalize the sequence"}
                 },
                 "required": ["role", "location", "session_id"]
             }

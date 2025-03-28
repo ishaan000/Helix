@@ -22,7 +22,7 @@ interface ChatProps {
 
 interface SearchResult {
   name: string;
-  source: string;
+  source?: string;
   snippet: string;
   link?: string;
 }
@@ -58,12 +58,11 @@ const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
           <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
             {result.name}
           </Typography>
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Source: {result.source}
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            {result.snippet}
-          </Typography>
+          {result.snippet && (
+            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+              {result.snippet}
+            </Typography>
+          )}
           {result.link && (
             <Link
               href={result.link}
@@ -179,8 +178,10 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
     const lines = content.split("\n");
     let currentResult: Partial<SearchResult> = {};
 
-    for (const line of lines) {
-      // Stop parsing if we hit the suggestions section
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Find where suggestions start
       if (
         line.includes("Generate a personalized outreach") ||
         line.includes("Get more details about") ||
@@ -189,20 +190,36 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
         break;
       }
 
+      // Skip the "Would you like me to" line
+      if (line.includes("Would you like me to")) {
+        continue;
+      }
+
+      // Handle numbered entries
       if (line.match(/^\d+\./)) {
         if (Object.keys(currentResult).length > 0) {
           results.push(currentResult as SearchResult);
         }
         currentResult = { name: line.replace(/^\d+\.\s*/, "") };
-      } else if (line.startsWith("   Source:")) {
+      }
+      // Handle source lines
+      else if (line.startsWith("   Source:")) {
         currentResult.source = line.replace("   Source:", "").trim();
-      } else if (line.startsWith("   ")) {
-        currentResult.snippet = line.trim();
-      } else if (line.startsWith("Profile:")) {
+      }
+      // Handle current/description lines
+      else if (line.startsWith("   Current:") || line.startsWith("   ")) {
+        const cleanLine = line.replace(/^(   Current:|   )/, "").trim();
+        if (cleanLine) {
+          currentResult.snippet = cleanLine;
+        }
+      }
+      // Handle profile links
+      else if (line.startsWith("Profile:")) {
         currentResult.link = line.replace("Profile:", "").trim();
       }
     }
 
+    // Add the last result if it exists
     if (Object.keys(currentResult).length > 0) {
       results.push(currentResult as SearchResult);
     }
@@ -277,19 +294,50 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                       : "1px solid rgba(255, 255, 255, 0.1)",
                 }}
               >
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: msg.sender === "user" ? "white" : "text.primary",
-                    whiteSpace: "pre-line",
-                  }}
-                >
-                  {msg.content}
-                </Typography>
-                {msg.sender === "ai" && parseSearchResults(msg.content) && (
-                  <SearchResultsBox
-                    results={parseSearchResults(msg.content)!}
-                  />
+                {msg.sender === "ai" && parseSearchResults(msg.content) ? (
+                  <>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: "text.primary",
+                        whiteSpace: "pre-line",
+                        mb: 2,
+                      }}
+                    >
+                      {msg.content.split("\n\n")[0]}
+                    </Typography>
+                    <SearchResultsBox
+                      results={parseSearchResults(msg.content)!}
+                    />
+                    <Box
+                      sx={{
+                        mt: 2,
+                        p: 2,
+                        background: "rgba(151, 71, 255, 0.05)",
+                        borderRadius: "12px",
+                      }}
+                    >
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: "text.primary",
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {msg.content.split("Would you like to:")[1]}
+                      </Typography>
+                    </Box>
+                  </>
+                ) : (
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: msg.sender === "user" ? "white" : "text.primary",
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {msg.content}
+                  </Typography>
                 )}
               </Paper>
             </Box>
