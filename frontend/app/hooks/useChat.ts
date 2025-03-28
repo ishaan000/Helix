@@ -157,7 +157,7 @@ export const useChat = (sessionId: string | null) => {
         setStatus({ state: null });
       };
 
-      showGenerationSteps();
+      await showGenerationSteps();
     } catch (error) {
       console.error("Error sending message:", error);
       setStatus({ state: null });

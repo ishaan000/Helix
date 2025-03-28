@@ -324,7 +324,7 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                           whiteSpace: "pre-line",
                         }}
                       >
-                        {msg.content.split("Would you like to:")[1]}
+                        {msg.content.includes("Would you like to:") ? msg.content.split("Would you like to:")[1] : ""}
                       </Typography>
                     </Box>
                   </>
