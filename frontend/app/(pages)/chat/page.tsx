@@ -1,13 +1,12 @@
 "use client";
 
-import { Box, Typography, IconButton } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import Chat from "../../components/Chat";
 import Workspace from "../../components/Workspace";
 import ChatSidebar from "../../components/ChatSidebar";
 import { useChat } from "../../hooks/useChat";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import ViewStreamIcon from "@mui/icons-material/ViewStream";
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
@@ -15,7 +14,11 @@ export default function ChatPage() {
   const sessionId = searchParams.get("session");
   const { messages, sequence, sendMessage, status } = useChat(sessionId);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [isSequenceVisible, setIsSequenceVisible] = useState(true);
+
+  // Debug log for sequence state
+  useEffect(() => {
+    console.log("Sequence state:", sequence);
+  }, [sequence]);
 
   // Check for user authentication
   useEffect(() => {
@@ -26,13 +29,15 @@ export default function ChatPage() {
     }
   }, [router]);
 
-  // Auto-minimize sidebar when workspace opens
+  // Auto-minimize sidebar when sequence is available
   useEffect(() => {
-    if (sequence.length > 0) {
+    if (sequence && sequence.length > 0) {
       setIsSidebarExpanded(false);
-      setIsSequenceVisible(true);
     }
   }, [sequence]);
+
+  const hasValidSequence =
+    sequence && sequence.length > 0 && sequence.some((step) => step.content);
 
   return (
     <Box
@@ -60,13 +65,12 @@ export default function ChatPage() {
       >
         <Box
           sx={{
-            width: sequence.length > 0 && isSequenceVisible ? "35%" : "100%",
+            width: hasValidSequence ? "35%" : "100%",
             height: "100%",
             transition: "all 0.5s ease-in-out",
-            borderRight:
-              sequence.length > 0 && isSequenceVisible
-                ? "1px solid rgba(255, 255, 255, 0.1)"
-                : "none",
+            borderRight: hasValidSequence
+              ? "1px solid rgba(255, 255, 255, 0.1)"
+              : "none",
             position: "relative",
           }}
         >
@@ -94,36 +98,10 @@ export default function ChatPage() {
           <Chat messages={messages} sendMessage={sendMessage} status={status} />
         </Box>
 
-        {sequence.length > 0 && isSequenceVisible && (
+        {hasValidSequence && (
           <Box sx={{ width: "65%", overflow: "hidden" }}>
-            <Workspace
-              sequence={sequence}
-              onMinimize={() => setIsSequenceVisible(false)}
-            />
+            <Workspace sequence={sequence} />
           </Box>
-        )}
-
-        {sequence.length > 0 && !isSequenceVisible && (
-          <IconButton
-            onClick={() => setIsSequenceVisible(true)}
-            size="small"
-            sx={{
-              position: "fixed",
-              right: 16,
-              bottom: "50%",
-              transform: "translateY(50%)",
-              color: "#9747FF",
-              background: "rgba(151, 71, 255, 0.1)",
-              width: 32,
-              height: 32,
-              zIndex: 10,
-              "&:hover": {
-                background: "rgba(151, 71, 255, 0.2)",
-              },
-            }}
-          >
-            <ViewStreamIcon sx={{ fontSize: 20 }} />
-          </IconButton>
         )}
       </Box>
     </Box>

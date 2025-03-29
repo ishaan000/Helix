@@ -199,36 +199,53 @@ def create_app(testing=False):
             # If a sequence was generated, save it
             if ai_sequence:
                 print(f"Received sequence from OpenAI for session_id: {session_id}")  # Debug log
-                SequenceStep.query.filter_by(session_id=session_id).delete()
-                db.session.commit()  # Commit the delete first
-
-                for step in ai_sequence:
-                    new_step = SequenceStep(
-                        session_id=session_id,
-                        step_number=step["step_number"],
-                        content=step["content"]
-                    )
-                    db.session.add(new_step)
-                db.session.commit()
-
-                # Fetch the saved sequence to ensure it's properly serialized
-                saved_sequence = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
-                print(f"Retrieved saved sequence for session_id {session_id}: {len(saved_sequence)} steps")  # Debug log
                 
-                sequence_data = [
-                    {
-                        "step_number": step.step_number,
-                        "content": step.content
-                    }
-                    for step in saved_sequence
-                ]
-                # Emit updated sequence over WebSocket
-                socketio.emit("sequence_updated", {
-                    "session_id": session_id,
-                    "sequence": sequence_data
-                })
+                try:
+                    # Delete existing steps
+                    SequenceStep.query.filter_by(session_id=session_id).delete()
+                    db.session.commit()
+
+                    # Validate and save new steps
+                    for step in ai_sequence:
+                        if not isinstance(step, dict) or "step_number" not in step or "content" not in step:
+                            print(f"Invalid step structure: {step}")
+                            continue
+                        
+                        new_step = SequenceStep(
+                            session_id=session_id,
+                            step_number=step["step_number"],
+                            content=step["content"].strip()
+                        )
+                        db.session.add(new_step)
+                    
+                    db.session.commit()
+
+                    # Verify saved steps
+                    saved_sequence = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
+                    print(f"Retrieved saved sequence for session_id {session_id}: {len(saved_sequence)} steps")
+                    
+                    if len(saved_sequence) == 0:
+                        print("Warning: No steps were saved to the database")
+                        sequence_data = []
+                    else:
+                        sequence_data = [
+                            {
+                                "step_number": step.step_number,
+                                "content": step.content
+                            }
+                            for step in saved_sequence
+                        ]
+                        # Emit updated sequence over WebSocket
+                        socketio.emit("sequence_updated", {
+                            "session_id": session_id,
+                            "sequence": sequence_data
+                        })
+                except Exception as e:
+                    print(f"Error saving sequence: {str(e)}")
+                    db.session.rollback()
+                    sequence_data = []
             else:
-                sequence_data = []  # Return empty array instead of None
+                sequence_data = []
 
             # Return structured response
             response_data = {
