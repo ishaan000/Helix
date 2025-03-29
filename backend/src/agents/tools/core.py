@@ -15,6 +15,22 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 logger = logging.getLogger(__name__)
 
 def get_sequence_data(session_id: str):
+    """Retrieve all steps of a sequence for a given session.
+    
+    This function fetches all sequence steps associated with a specific chat session,
+    ordered by their step number.
+    
+    Args:
+        session_id (str): The unique identifier of the chat session
+        
+    Returns:
+        list: A list of dictionaries, where each dictionary contains:
+            - step_number (int): The order of the step
+            - content (str): The content of the step
+            
+    Note:
+        Returns an empty list if no steps are found for the given session_id
+    """
     steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
     return [{"step_number": step.step_number, "content": step.content} for step in steps]
 

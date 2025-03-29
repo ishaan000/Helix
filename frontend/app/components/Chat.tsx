@@ -14,12 +14,27 @@ import { ChatMessage, LoadingStatus } from "../hooks/useChat";
 import SendIcon from "@mui/icons-material/Send";
 import SearchIcon from "@mui/icons-material/Search";
 
+/**
+ * Interface defining the props for the Chat component.
+ * @interface ChatProps
+ * @property {ChatMessage[]} messages - Array of chat messages to display
+ * @property {(content: string) => Promise<void>} sendMessage - Function to send a new message
+ * @property {LoadingStatus} status - Current loading status of the chat
+ */
 interface ChatProps {
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
   status: LoadingStatus;
 }
 
+/**
+ * Interface defining the structure of a search result.
+ * @interface SearchResult
+ * @property {string} name - Name of the professional
+ * @property {string} [source] - Source of the search result
+ * @property {string} snippet - Brief description or snippet
+ * @property {string} [link] - URL to the professional's profile
+ */
 interface SearchResult {
   name: string;
   source?: string;
@@ -27,14 +42,24 @@ interface SearchResult {
   link?: string;
 }
 
+/**
+ * Example prompts to help users get started with the chat.
+ * @constant {string[]}
+ */
 const EXAMPLE_PROMPTS = [
-  "Generate a sequence for a Founding Engineer in SF",
   "Search for a UX Designer in SF proficient in Figma",
   "Write an offer letter for the UX lead at SellScale.",
   "Generate a casual outreach for a Backend Engineer in Chicago",
   "Search for a Software Engineer in Austin that knows React and Node",
 ];
 
+/**
+ * Component to display search results in a styled box.
+ * @component
+ * @param {Object} props - Component props
+ * @param {SearchResult[]} props.results - Array of search results to display
+ * @returns {JSX.Element} Rendered search results box
+ */
 const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
   return (
     <Box
@@ -89,6 +114,19 @@ const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
   );
 };
 
+/**
+ * Main Chat component that handles message display and user input.
+ * Features:
+ * - Real-time message display
+ * - Message input with send functionality
+ * - Loading state indicators
+ * - Example prompts for quick start
+ * - Search results display
+ *
+ * @component
+ * @param {ChatProps} props - Component props
+ * @returns {JSX.Element} Rendered chat interface
+ */
 export default function Chat({ messages, sendMessage, status }: ChatProps) {
   const [input, setInput] = useState("");
 

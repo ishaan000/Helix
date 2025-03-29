@@ -45,6 +45,24 @@ def generate_chat_title(message: str) -> str:
         return "New Chat"
 
 def create_app(testing=False):
+    """Create and configure the Flask application.
+    
+    This function initializes the Flask application with all necessary configurations,
+    database connections, and route handlers. It sets up CORS, database connections,
+    and WebSocket support.
+    
+    Args:
+        testing (bool, optional): If True, configures the app for testing with an in-memory database.
+            Defaults to False.
+    
+    Returns:
+        Flask: The configured Flask application instance.
+    
+    Note:
+        - Creates necessary database tables if they don't exist
+        - Sets up WebSocket support with CORS enabled
+        - Configures SQLAlchemy with appropriate database URI
+    """
     app = Flask(__name__)
     CORS(app)
 
