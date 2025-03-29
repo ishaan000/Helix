@@ -109,18 +109,32 @@ Each message should be complete and self-contained. Make sure to:
         print("\nRaw GPT content:\n", content)
 
         try:
+            # First try direct JSON parsing
             steps_json = json.loads(content)
         except json.JSONDecodeError:
             try:
-                json_str = re.search(r"\[.*\]", content, re.DOTALL).group()
-                steps_json = json.loads(json_str)
+                # Try to extract JSON array using regex
+                json_str = re.search(r"\[.*\]", content, re.DOTALL)
+                if not json_str:
+                    return f"Could not find JSON array in response. Raw content:\n{content}"
+                steps_json = json.loads(json_str.group())
                 print("\n✅ Extracted JSON steps:\n", steps_json)
             except Exception as e:
                 return f"Failed to parse sequence steps: {str(e)}\n\nRaw content:\n{content}"
 
+        # Validate step structure
+        if not isinstance(steps_json, list):
+            return f"Expected JSON array, got {type(steps_json)}. Raw content:\n{content}"
+
         for step in steps_json:
-            if not isinstance(step, dict) or "step_number" not in step or "content" not in step:
-                return "Invalid step structure in generated sequence"
+            if not isinstance(step, dict):
+                return f"Invalid step type: {type(step)}. Expected dict. Raw content:\n{content}"
+            if "step_number" not in step or "content" not in step:
+                return f"Missing required fields in step: {step}. Raw content:\n{content}"
+            if not isinstance(step["step_number"], int):
+                return f"Invalid step_number type: {type(step['step_number'])}. Expected int. Raw content:\n{content}"
+            if not isinstance(step["content"], str):
+                return f"Invalid content type: {type(step['content'])}. Expected str. Raw content:\n{content}"
 
         try:
             # Delete existing steps
@@ -132,7 +146,7 @@ Each message should be complete and self-contained. Make sure to:
                 new_step = SequenceStep(
                     session_id=session_id,
                     step_number=step["step_number"],
-                    content=step["content"]
+                    content=step["content"].strip()  # Ensure content is stripped
                 )
                 db.session.add(new_step)
                 print(f"Adding step {step['step_number']} for session {session_id}")
@@ -143,6 +157,11 @@ Each message should be complete and self-contained. Make sure to:
             # Verify the steps were saved
             saved_steps = SequenceStep.query.filter_by(session_id=session_id).order_by(SequenceStep.step_number).all()
             print(f"Verified {len(saved_steps)} steps in database for session {session_id}")
+
+            if len(saved_steps) != len(steps_json):
+                print(f"Warning: Saved steps count ({len(saved_steps)}) doesn't match generated steps count ({len(steps_json)})")
+                db.session.rollback()
+                return "Error: Failed to save all steps correctly"
 
             emit_sequence_update(session_id)
             return "Outreach sequence generated and saved successfully."
