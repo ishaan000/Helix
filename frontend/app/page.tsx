@@ -19,7 +19,7 @@ export default function Home() {
         Helix is a platform that helps you find the right people for your
         business.
       </Typography>
-      <Link style={{ marginTop: 20 }} href="/register">
+      <Link style={{ marginTop: 20 }} href="/intake">
         Get Started
       </Link>
     </Box>
