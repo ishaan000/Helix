@@ -29,7 +29,7 @@ interface SearchResult {
 
 const EXAMPLE_PROMPTS = [
   "Generate a sequence for a Founding Engineer in SF",
-  "Search for a UX Designer in SF procient in Figma",
+  "Search for a UX Designer in SF proficient in Figma",
   "Write an offer letter for the UX lead at SellScale.",
   "Generate a casual outreach for a Backend Engineer in Chicago",
   "Search for a Software Engineer in Austin that knows React and Node",
