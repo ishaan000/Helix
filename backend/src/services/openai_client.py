@@ -30,7 +30,7 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
             "role": "system",
             "content": f"""
     The user is a job seeker named {user.name} with experience as a {user.title} in the {user.industry} industry.
-    Their company background is {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
+    Their company background is {user.company}.
     Do NOT ask for this information again unless explicitly requested.
     """
         }
