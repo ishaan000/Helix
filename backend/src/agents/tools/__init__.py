@@ -4,7 +4,7 @@ from .core import (
     revise_step,
     change_tone,
     add_step,
-    generate_recruiting_asset,
+    generate_networking_asset,
     search_and_analyze_professionals,
     generate_personalized_outreach
 )
@@ -15,7 +15,7 @@ __all__ = [
     'revise_step',
     'change_tone',
     'add_step',
-    'generate_recruiting_asset',
+    'generate_networking_asset',
     'search_and_analyze_professionals',
     'generate_personalized_outreach'
 ]

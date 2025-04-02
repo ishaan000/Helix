@@ -20,22 +20,24 @@ export const sendChatMessage = async (message: string, sessionId: string) => {
 export const signUpUser = async (formData: {
   name: string;
   email: string;
-  company: string;
+  current_company?: string;
   title: string;
   industry: string;
-  companySize: string;
+  preferences: {
+    jobTypes: string[];
+    targetCompanies: string[];
+    targetLocations: string[];
+    yearsExperience: number;
+    skills: string[];
+    jobLevel: string;
+  };
 }) => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
   const res = await fetch(`${apiUrl}/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...formData,
-      preferences: {
-        companySize: formData.companySize,
-      },
-    }),
+    body: JSON.stringify(formData),
   });
 
   if (!res.ok) {

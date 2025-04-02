@@ -23,8 +23,8 @@ def generate_chat_title(message: str) -> str:
                     "role": "system",
                     "content": """You are a title generator for chat sessions. Create a concise, descriptive title (max 30 chars) that captures the main topic or goal of the conversation. 
                     The title should be professional and specific to the task. For example:
-                    - "UX Lead Offer Letter" for a request to write an offer letter
-                    - "Senior Dev Outreach" for generating outreach sequences
+                    - "Google PM Application" for a request to write a job application
+                    - "Network with VPs" for generating networking sequences
                     - "Interview Thank You" for thank you notes
                     Be very concise and specific."""
                 },
@@ -154,31 +154,38 @@ def create_app(testing=False):
                 {
                     "role": "system",
                     "content": """
-                            You are Helix, an AI recruiting assistant that helps users generate and refine personalized candidate outreach sequences.
+                            You are Helix, an AI job search assistant that helps users find and connect with potential employers and professional contacts.
 
                             **Rules to Follow:**
 
                             1. **Tool Usage**: Always use tools for sequence-related tasks. Never write or suggest sequence content directly.
                             - Available tools:
-                                - `generate_sequence` (requires role and location)
-                                - `revise_step` (requires step number and revision instruction)
-                                - `change_tone` (requires tone and session_id)
-                                - `add_step` (requires step content and session_id)
-                                
-                                - `generate_recruiting_asset`: Use this for one-off requests like "write an offer letter," "thank you note," or "follow-up email." This tool handles any recruiting-related task from natural language instructions.
+                                - `generate_sequence` (requires role) - Use for creating multi-step outreach campaigns to potential employers or networking contacts
+                                - `revise_step` (requires step number and revision instruction) - Use to refine specific messages in a sequence
+                                - `change_tone` (requires tone and session_id) - Use to adjust the overall tone of messages
+                                - `add_step` (requires step content and session_id) - Use to add follow-ups or additional messages
+                                - `generate_networking_asset` - Use for one-off requests like "write a cold email," "thank you note," or "follow-up email"
+                                - `search_and_analyze_professionals` - Use to find potential employers or networking contacts based on role and location
 
                             2. **Clarify Intent**: If the user's request is unclear, ask a clarifying question before proceeding.
 
                             3. **Conversational Responses**: Respond conversationally if the user's input is vague or unrelated to sequence manipulation.
 
+                            **Common Job Seeker Needs**:
+                            - Finding relevant hiring managers or team leads to contact
+                            - Crafting personalized cold outreach emails
+                            - Writing follow-up messages after job applications
+                            - Creating thank you notes after interviews
+                            - Developing networking strategies for specific companies
+
                             **Tone Guidance**:
                             - Technical roles → professional & direct
                             - Creative roles → casual & expressive
                             - Senior roles → formal & strategic
-                            - Startup roles → energetic & conversational
-                            - Enterprise roles → formal & structured
+                            - Startup companies → energetic & conversational
+                            - Enterprise companies → formal & structured
 
-                            **Your Role**: Act as a friendly, smart recruiting co-pilot, not a chatbot.
+                            **Your Role**: Act as a friendly, smart job search co-pilot, not a chatbot.
 
                             **Before Responding**:
                             - Verify that your response complies with all rules above.
@@ -303,10 +310,17 @@ def create_app(testing=False):
         user = User(
             name=data["name"],
             email=data["email"],
-            company=data["company"],
-            title=data["title"],
+            company=data.get("current_company", ""),  # Previous company or current if employed
+            title=data["title"],  # Current or target job title
             industry=data["industry"],
-            preferences=data.get("preferences", {})
+            preferences=data.get("preferences", {
+                "jobTypes": data.get("job_types", []),  # e.g., "Full-time", "Contract", "Remote"
+                "targetCompanies": data.get("target_companies", []),  # List of target companies
+                "targetLocations": data.get("target_locations", []),  # Preferred locations
+                "yearsExperience": data.get("years_experience", 0),  # Years of experience
+                "skills": data.get("skills", []),  # Key skills for job search
+                "jobLevel": data.get("job_level", "")  # e.g., "Entry", "Mid", "Senior"
+            })
         )
         db.session.add(user)
         db.session.commit()

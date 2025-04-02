@@ -9,7 +9,7 @@ import {
   Link,
   Divider,
 } from "@mui/material";
-import { useState } from "react";
+import React, { useState } from "react";
 import { ChatMessage, LoadingStatus } from "../hooks/useChat";
 import SendIcon from "@mui/icons-material/Send";
 import SearchIcon from "@mui/icons-material/Search";
@@ -112,6 +112,78 @@ const SearchResultsBox = ({ results }: { results: SearchResult[] }) => {
       ))}
     </Box>
   );
+};
+
+/**
+ * Converts URLs in text to clickable links
+ * @param {string} text - The text containing URLs to convert
+ * @returns {React.ReactNode[]} Array of text and link elements
+ */
+const convertUrlsToLinks = (text: string): React.ReactNode[] => {
+  if (!text) return [];
+  
+  // Regular expression to match URLs (including LinkedIn URLs)
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  
+  // Find all URLs in the text
+  const matches: { url: string; index: number }[] = [];
+  let match;
+  while ((match = urlRegex.exec(text)) !== null) {
+    matches.push({ url: match[0], index: match.index });
+  }
+  
+  // If no URLs found, return the original text
+  if (matches.length === 0) return [text];
+  
+  // Create an array of text and link elements
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
+  
+  matches.forEach((match, i) => {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      result.push(text.substring(lastIndex, match.index));
+    }
+    
+    // Format the display text for the link
+    let displayText = match.url;
+    
+    // For LinkedIn URLs, show a cleaner text
+    if (match.url.includes('linkedin.com')) {
+      displayText = 'View LinkedIn Profile';
+    } else if (displayText.length > 30) {
+      // For other long URLs, truncate them
+      displayText = displayText.substring(0, 30) + '...';
+    }
+    
+    // Add the URL as a link
+    result.push(
+      <Link
+        key={i}
+        href={match.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          color: "#9747FF",
+          textDecoration: "none",
+          "&:hover": {
+            textDecoration: "underline",
+          },
+        }}
+      >
+        {displayText}
+      </Link>
+    );
+    
+    lastIndex = match.index + match.url.length;
+  });
+  
+  // Add any remaining text after the last URL
+  if (lastIndex < text.length) {
+    result.push(text.substring(lastIndex));
+  }
+  
+  return result;
 };
 
 /**
@@ -452,7 +524,9 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                       whiteSpace: "pre-line",
                     }}
                   >
-                    {msg.content}
+                    {msg.sender === "ai" 
+                      ? convertUrlsToLinks(msg.content)
+                      : msg.content}
                   </Typography>
                 )}
               </Paper>
