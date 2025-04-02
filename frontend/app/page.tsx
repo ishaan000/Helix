@@ -16,8 +16,7 @@ export default function Home() {
         Welcome to Helix
       </Typography>
       <Typography variant="body1">
-        Helix is a platform that helps you find the right people for your
-        business.
+        Helix is a platform that helps you find the right job
       </Typography>
       <Link style={{ marginTop: 20 }} href="/intake">
         Get Started

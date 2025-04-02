@@ -7,7 +7,7 @@ from agents.tools import (
     revise_step,
     change_tone,
     add_step,
-    generate_recruiting_asset,
+    generate_networking_asset,
     search_and_analyze_professionals,
     generate_personalized_outreach
 )
@@ -29,8 +29,8 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
         context_message = {
             "role": "system",
             "content": f"""
-    The user is a recruiter named {user.name} at {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
-    They are a {user.title} in the {user.industry} industry.
+    The user is a job seeker named {user.name} with experience as a {user.title} in the {user.industry} industry.
+    Their company background is {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
     Do NOT ask for this information again unless explicitly requested.
     """
         }
@@ -67,8 +67,8 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
                     result = change_tone(**args)
                 elif name == "add_step":
                     result = add_step(**args)
-                elif name == "generate_recruiting_asset":
-                    result = generate_recruiting_asset(**args)
+                elif name == "generate_networking_asset":
+                    result = generate_networking_asset(**args)
                 elif name == "search_and_analyze_professionals":
                     result = search_and_analyze_professionals(**args)
                 elif name == "generate_personalized_outreach":
@@ -93,8 +93,8 @@ def chat_with_openai(messages: list, session_id: str) -> dict:
         - Don't repeat your intro or say hello.
         - Keep it short, friendly, and helpful.
         """
-        elif name == "generate_recruiting_asset":
-            follow_up_prompt = """You just helped the recruiter using the `generate_recruiting_asset` tool.
+        elif name == "generate_networking_asset":
+            follow_up_prompt = """You just helped the job seeker using the `generate_networking_asset` tool.
 
         Now respond naturally:
         - Mention that the message is ready.
