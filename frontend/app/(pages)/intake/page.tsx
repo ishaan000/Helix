@@ -65,10 +65,14 @@ export default function IntakePage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleMultiSelectChange = (name: string) => (event: React.ChangeEvent<{ value: unknown }>) => {
-    const { value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: typeof value === 'string' ? value.split(',') : value }));
-  };
+  const handleMultiSelectChange =
+    (name: string) => (event: React.ChangeEvent<{ value: unknown }>) => {
+      const { value } = event.target;
+      setForm((prev) => ({
+        ...prev,
+        [name]: typeof value === "string" ? value.split(",") : value,
+      }));
+    };
 
   const handleSubmit = async () => {
     // Format the data to match the backend expectations
@@ -79,15 +83,26 @@ export default function IntakePage() {
       title: form.title,
       industry: form.industry,
       preferences: {
-        jobTypes: Array.isArray(form.job_types) ? form.job_types : [form.job_types],
-        targetCompanies: form.target_companies.split(',').map(c => c.trim()).filter(c => c),
-        targetLocations: form.target_locations.split(',').map(l => l.trim()).filter(l => l),
+        jobTypes: Array.isArray(form.job_types)
+          ? form.job_types
+          : [form.job_types],
+        targetCompanies: form.target_companies
+          .split(",")
+          .map((c) => c.trim())
+          .filter((c) => c),
+        targetLocations: form.target_locations
+          .split(",")
+          .map((l) => l.trim())
+          .filter((l) => l),
         yearsExperience: parseInt(form.years_experience) || 0,
-        skills: form.skills.split(',').map(s => s.trim()).filter(s => s),
-        jobLevel: form.job_level
-      }
+        skills: form.skills
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s),
+        jobLevel: form.job_level,
+      },
     };
-    
+
     const userId = await register(formattedData);
     if (userId) {
       router.push("/chat");
@@ -113,7 +128,7 @@ export default function IntakePage() {
           },
         }}
       >
-        Let Helix Help Your Job Search
+        Let Seeker Help Your Job Search
       </Typography>
       <Typography
         variant="subtitle1"
@@ -127,7 +142,9 @@ export default function IntakePage() {
           },
         }}
       >
-        I&apos;m Helix, your AI job search assistant. Share a bit about yourself and your career goals so I can help you connect with the right opportunities and people.
+        I&apos;m Seeker, your AI job search assistant. Share a bit about
+        yourself and your career goals so I can help you connect with the right
+        opportunities and people.
       </Typography>
 
       <Paper
@@ -316,7 +333,7 @@ export default function IntakePage() {
             value={form.job_types}
             onChange={handleMultiSelectChange("job_types")}
             SelectProps={{
-              multiple: true
+              multiple: true,
             }}
             helperText="Select all that apply"
             sx={{
@@ -395,7 +412,7 @@ export default function IntakePage() {
             value={form.years_experience}
             onChange={handleChange}
             InputProps={{
-              inputProps: { min: 0 }
+              inputProps: { min: 0 },
             }}
             sx={{
               "& .MuiOutlinedInput-root": {

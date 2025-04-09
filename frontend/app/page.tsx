@@ -13,10 +13,10 @@ export default function Home() {
       height="100vh"
     >
       <Typography padding={2} variant="h1">
-        Welcome to Helix
+        Welcome to Seeker
       </Typography>
       <Typography variant="body1">
-        Helix is a platform that helps you find the right job
+        Seeker is a platform that helps you find the right job
       </Typography>
       <Link style={{ marginTop: 20 }} href="/intake">
         Get Started

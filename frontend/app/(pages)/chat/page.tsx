@@ -92,7 +92,7 @@ export default function ChatPage() {
                 zIndex: 1,
               }}
             >
-              Helix
+              Seeker
             </Typography>
           )}
           <Chat messages={messages} sendMessage={sendMessage} status={status} />
