@@ -443,7 +443,7 @@ def generate_personalized_outreach(profile_url: str, session_id: str) -> str:
         Profile URL: {profile_url}
         Profile Content: {details['content']}
         
-        The message should be from {user_name} at {user_title} and should:
+        The message should be from {user_name} as a {user_title} and should:
         1. Reference specific details from their profile
         2. Show genuine interest in their work
         3. Be concise but personal
