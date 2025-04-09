@@ -13,7 +13,7 @@ Seeker is a modern job search tool that leverages AI agents to streamline the jo
 - **Frontend**: Next.js application with TypeScript
 - **Backend**: Flask REST API with WebSocket support
 - **Database**: SQLite with SQLAlchemy ORM
-- **AI Integration**: OpenAI GPT-4 for natural language processing
+- **AI Integration**: OpenAI GPT-4 for natural language processing and tool calling
 - **External APIs**: SerpAPI for job search and company research
 
 ### Key Features
