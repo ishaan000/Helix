@@ -1,10 +1,10 @@
-# Helix
+# Seeker
 
-Agent-powered recruiting tool.
+Agent-powered job search assistant.
 
 ## Project Overview
 
-Helix is a modern recruiting tool that leverages AI agents to streamline the recruitment process. The project consists of a Next.js frontend and a Flask backend.
+Seeker is a modern job search tool that leverages AI agents to streamline the job hunting process. The project consists of a Next.js frontend and a Flask backend.
 
 ## Architecture
 
@@ -14,24 +14,27 @@ Helix is a modern recruiting tool that leverages AI agents to streamline the rec
 - **Backend**: Flask REST API with WebSocket support
 - **Database**: SQLite with SQLAlchemy ORM
 - **AI Integration**: OpenAI GPT-4 for natural language processing
-- **External APIs**: SerpAPI for professional search
+- **External APIs**: SerpAPI for job search and company research
 
 ### Key Features
 
-- Real-time chat interface for AI-powered recruitment assistance
-- Dynamic sequence generation for candidate outreach
-- Professional search and analysis capabilities
-- Personalized outreach message generation
+- Real-time chat interface for AI-powered job search assistance
+- Dynamic email sequence generation for outreach to potential employers
+- Job search and company analysis capabilities
+- Personalized outreach message generation for networking and applications
 - WebSocket-based real-time updates
+- Job lead tracking and management
+- Application status monitoring
 
 ## Database Schema
 
 ### Core Models
 
-- **User**: Stores recruiter information and preferences
+- **User**: Stores job seeker information and preferences
 - **Session**: Represents a chat session between user and AI
 - **Message**: Stores chat messages within a session
 - **SequenceStep**: Contains individual steps in an outreach sequence
+- **JobLead**: Stores information about potential job opportunities
 
 ### Relationships
 
@@ -90,7 +93,7 @@ SERPAPI_KEY=<your-serp-key>
    python3 src/init_db.py
    ```
 
-   This will create a SQLite database file (`helix.db`) in your backend directory with all necessary tables.
+   This will create a SQLite database file (`seeker.db`) in your backend directory with all necessary tables.
 
 ### Frontend Setup
 
@@ -132,7 +135,7 @@ SERPAPI_KEY=<your-serp-key>
 - Backend API documentation is available at `http://localhost:5001/api/docs`
 - Frontend development server includes hot reloading
 - Use `npm run lint` to check for frontend code style issues
-- The SQLite database file (`helix.db`) will be created automatically when you run `init_db.py`
+- The SQLite database file (`seeker.db`) will be created automatically when you run `init_db.py`
 
 ## Troubleshooting
 
