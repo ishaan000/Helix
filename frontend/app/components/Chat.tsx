@@ -454,7 +454,7 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
                   },
                 }}
               >
-                {msg.sender === "user" ? "You" : "Helix"}
+                {msg.sender === "user" ? "You" : "Seeker"}
               </Typography>
               <Paper
                 elevation={0}
@@ -572,7 +572,7 @@ export default function Chat({ messages, sendMessage, status }: ChatProps) {
           <TextField
             fullWidth
             size="small"
-            placeholder="Ask Helix something..."
+            placeholder="Ask Seeker something..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {

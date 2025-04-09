@@ -69,7 +69,7 @@ def create_app(testing=False):
     if testing:
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
     else:
-        app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///helix.db")
+        app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///seeker.db")
 
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["TESTING"] = testing
@@ -107,7 +107,7 @@ def create_app(testing=False):
 
     @app.route("/")
     def index():
-        return "Helix backend running!"
+        return "Seeker backend running!"
     
     @app.route("/chat", methods=["POST"])
     def chat():
@@ -154,7 +154,7 @@ def create_app(testing=False):
                 {
                     "role": "system",
                     "content": """
-                            You are Helix, an AI job search assistant that helps users find and connect with potential employers and professional contacts.
+                            You are Seeker, an AI job search assistant that helps users find and connect with potential employers and professional contacts.
 
                             **Rules to Follow:**
 
