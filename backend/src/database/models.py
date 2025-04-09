@@ -2,19 +2,20 @@ from database.db import db
 import uuid
 
 class User(db.Model):
-    """Model representing a recruiter or user of the system.
+    """Model representing a job seeker or user of the system.
     
-    This model stores information about the recruiter using the system, including their
-    personal details, company information, and preferences.
+    This model stores information about the job seeker using the system, including their
+    personal details, work experience, and job search preferences.
     
     Attributes:
         id (str): Primary key, UUID string
-        name (str): Full name of the recruiter
-        email (str): Unique email address of the recruiter
-        company (str): Name of the recruiter's company
-        title (str): Recruiter's job title
-        industry (str): Industry sector of the company
-        preferences (dict): JSON field storing user preferences and settings
+        name (str): Full name of the job seeker
+        email (str): Unique email address of the job seeker
+        company (str): Name of the job seeker's current or previous company
+        title (str): Job seeker's current or target job title
+        industry (str): Industry sector of interest
+        preferences (dict): JSON field storing user preferences including target companies,
+                           job types, locations, years of experience, skills, and job level
     
     Relationships:
         - Has many Sessions (one-to-many relationship)

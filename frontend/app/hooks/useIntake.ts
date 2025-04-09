@@ -4,10 +4,17 @@ import { signUpUser } from "../utils/api"; // API helper you already added
 interface RegisterFormData {
   name: string;
   email: string;
-  company: string;
+  current_company?: string;
   title: string;
   industry: string;
-  companySize: string;
+  preferences: {
+    jobTypes: string[];
+    targetCompanies: string[];
+    targetLocations: string[];
+    yearsExperience: number;
+    skills: string[];
+    jobLevel: string;
+  };
 }
 
 export const useRegister = () => {

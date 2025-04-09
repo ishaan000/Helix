@@ -21,14 +21,14 @@ def search_professionals(
     current_company: Optional[str] = None
 ) -> Dict:
     """
-    Search for professionals using LinkedIn.
+    Search for potential employers and networking contacts using LinkedIn.
     
     Args:
-        query (str): The search query (e.g., "software engineer", "product designer")
+        query (str): The search query (e.g., "hiring manager", "engineering director")
         location (Optional[str]): Location to search in (e.g., "San Francisco")
         years_experience (Optional[int]): Minimum years of experience
-        skills (Optional[List[str]]): List of required skills
-        current_company (Optional[str]): Current company name
+        skills (Optional[List[str]]): List of relevant skills
+        current_company (Optional[str]): Target company name
     
     Returns:
         Dict: Search results containing professional profiles

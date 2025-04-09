@@ -7,7 +7,7 @@ import re
 from typing import Dict, Any, Optional, List
 from .web_search import search_professionals, get_professional_details
 
-from socketio_instance import socketio  # ✅ import safely
+from socketio_instance import socketio  # import safely
 import logging
 
 load_dotenv()
@@ -56,8 +56,8 @@ def generate_sequence(role: str, location: str, session_id: str, step_count: Opt
 
     # Get user info from session
     session = Session.query.get(session_id)
-    user_name = session.user.name if session and session.user else "the recruiter"
-    company_name = session.user.company if session and session.user else "the company"
+    user_name = session.user.name if session and session.user else "the job seeker"
+    user_title = session.user.title if session and session.user else "professional"
 
     # Get professional details if profile_url is provided
     professional_context = ""
@@ -70,23 +70,23 @@ def generate_sequence(role: str, location: str, session_id: str, step_count: Opt
             - Current Position: {details.get('title', 'N/A')}
             - Background: {details.get('content', 'N/A')}
             
-            Use these details to personalize the outreach sequence. Reference specific aspects of their experience and background.
+            Use these details to personalize the networking/job application sequence. Reference specific aspects of their company and role that align with the job seeker's skills and interests.
             """
         except Exception as e:
             logger.error(f"Error fetching professional details: {str(e)}")
             professional_context = ""
 
     base_prompt = f"""
-Generate a professional outreach sequence for recruiting a {role} based in {location}.
-The messages should be written from {user_name}'s perspective at {company_name}.
-Make sure to mention {company_name} in the messages to establish credibility.
+Generate a professional outreach sequence for a job seeker interested in a {role} position based in {location}.
+The messages should be written from {user_name}'s perspective as a {user_title}.
+Make sure to highlight relevant skills and experience that would make them a good fit for the role.
 
 Follow this structure for each step:
-1. Initial Outreach: Introduce yourself, mention how you found them, and highlight specific aspects of their background that caught your attention. Explain why you're reaching out and what makes them a great fit for the role at {company_name}. Include specific details about the role and opportunity.
+1. Initial Outreach: Introduce yourself, mention how you found them, and express specific interest in their company/team. Highlight 1-2 relevant skills or experiences that make you a good fit. End with a clear call to action (like requesting a brief conversation).
 
-2. Follow-up: If no response, send a brief, friendly follow-up that adds value - perhaps sharing more about {company_name}'s culture or the team they'd be working with. Make it easy to respond with a clear next step.
+2. Follow-up: If no response, send a brief, friendly follow-up that adds value - perhaps sharing an insight about their industry or a recent company announcement. Reiterate your interest and make it easy to respond.
 
-3. Final Touch: If still no response, send one final message that's concise and direct, emphasizing the unique opportunity and asking for a brief conversation.
+3. Final Touch: If still no response, send one final message that's concise and direct, emphasizing your continued interest and offering flexibility for a brief conversation.
 
 {professional_context}
 
@@ -99,13 +99,14 @@ Respond in JSON format as a list like:
 
 Each message should be complete and self-contained. Make sure to:
 - Keep messages concise but personal
-- Reference specific details from their background
+- Reference specific details about the company/role
+- Highlight relevant skills and experiences
 - Include clear next steps
 - Maintain a professional yet conversational tone
 - Avoid generic language
 """
     if step_count:
-        base_prompt = f"Generate a {step_count}-step outreach sequence for a {role} in {location}.\n" + base_prompt
+        base_prompt = f"Generate a {step_count}-step outreach sequence for a job seeker interested in a {role} position in {location}.\n" + base_prompt
 
     try:
         response = client.chat.completions.create(
@@ -113,7 +114,7 @@ Each message should be complete and self-contained. Make sure to:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a recruiting assistant that creates personalized candidate outreach sequences. Generate professional and engaging outreach messages that follow a clear structure and reference specific details from the candidate's background when available. Each message should be complete and self-contained."
+                    "content": "You are a job search assistant that creates personalized outreach sequences for networking and job applications. Generate professional and engaging outreach messages that follow a clear structure and reference specific details about the target company and role when available. Each message should be complete and self-contained."
                 },
                 {"role": "user", "content": base_prompt}
             ],
@@ -196,10 +197,42 @@ def get_user_context(session_id: str) -> str:
     if not session or not session.user:
         return ""
     user = session.user
-    return f"""
-The messages should be written from {user.name}'s perspective at {user.company} (a {user.preferences.get('companySize', 'N/A')} company).
-{user.name} is a {user.title} in the {user.industry} industry.
+    
+    # Extract job seeker preferences
+    prefs = user.preferences or {}
+    job_types = ", ".join(prefs.get("jobTypes", []) or ["Full-time"])
+    target_companies = ", ".join(prefs.get("targetCompanies", []) or [])
+    target_locations = ", ".join(prefs.get("targetLocations", []) or [])
+    years_experience = prefs.get("yearsExperience", 0)
+    skills = ", ".join(prefs.get("skills", []) or [])
+    job_level = prefs.get("jobLevel", "")
+    
+    context = f"""
+The messages should be written from {user.name}'s perspective as a {user.title} in the {user.industry} industry.
 """
+
+    if user.company:
+        context += f"Their current or previous company is {user.company}.\n"
+    
+    if years_experience:
+        context += f"They have {years_experience} years of experience.\n"
+    
+    if skills:
+        context += f"Their key skills include: {skills}.\n"
+    
+    if job_level:
+        context += f"They are looking for {job_level}-level positions.\n"
+    
+    if job_types:
+        context += f"They are interested in {job_types} roles.\n"
+    
+    if target_locations:
+        context += f"Their preferred locations are: {target_locations}.\n"
+    
+    if target_companies:
+        context += f"Their target companies include: {target_companies}.\n"
+    
+    return context
 
 def revise_step(session_id: str, step_number: int, new_instruction: str) -> str:
     step = SequenceStep.query.filter_by(session_id=session_id, step_number=step_number).first()
@@ -285,14 +318,14 @@ New message:"""
     emit_sequence_update(session_id)
     return f"New step added at position {position}."
 
-def generate_recruiting_asset(task: str, session_id: str):
+def generate_networking_asset(task: str, session_id: str):
     user_context = get_user_context(session_id)
     prompt = f"""
-You're a recruiting assistant. Based on the following instruction, generate a fully formatted message (email, letter, follow-up, etc).
+You're a job search assistant. Based on the following instruction, generate a fully formatted message (email, letter, follow-up, etc).
 {user_context}
 Task: {task}
 
-Format the result as if it will be sent to a candidate or hiring manager.
+Format the result as if it will be sent to a potential employer, hiring manager, or networking contact.
 """
 
     response = client.chat.completions.create(
@@ -309,7 +342,7 @@ Format the result as if it will be sent to a candidate or hiring manager.
     db.session.commit()
     emit_sequence_update(session_id)
 
-    return "Recruiting asset generated successfully."
+    return "Networking asset generated successfully."
 
 def search_and_analyze_professionals(
     session_id: str,
@@ -320,15 +353,15 @@ def search_and_analyze_professionals(
     current_company: Optional[str] = None
 ) -> str:
     """
-    Search for professionals and analyze their profiles.
+    Search for potential employers and networking contacts based on role and location.
     
     Args:
         session_id (str): The session ID
-        query (str): Search query (e.g., "software engineer", "product designer")
+        query (str): Search query (e.g., "hiring managers", "engineering directors")
         location (Optional[str]): Location to search in
         years_experience (Optional[int]): Minimum years of experience
-        skills (Optional[List[str]]): List of required skills
-        current_company (Optional[str]): Current company name
+        skills (Optional[List[str]]): List of relevant skills
+        current_company (Optional[str]): Target company name
     
     Returns:
         str: Formatted results with professional profiles
@@ -350,7 +383,7 @@ def search_and_analyze_professionals(
             return f"I couldn't find any professionals matching your criteria for '{query}' in {location or 'any location'}. Would you like to try different search criteria?"
         
         # Format the results
-        response = f"I found {results['total_found']} professionals matching your search for '{query}'"
+        response = f"I found {results['total_found']} potential contacts matching your search for '{query}'"
         if location:
             response += f" in {location}"
         response += ":\n\n"
@@ -374,7 +407,7 @@ def search_and_analyze_professionals(
             response += f"Profile: {prof['link']}\n\n"
         
         response += "\nWould you like to:\n"
-        response += "1. Generate a personalized outreach sequence for any of these professionals (I'll use their profile details to create a tailored sequence)\n"
+        response += "1. Generate a personalized outreach sequence for any of these professionals (I'll use their profile details to create a tailored message)\n"
         response += "2. Get more details about specific professionals\n"
         response += "3. Refine the search with different criteria"
         
@@ -386,7 +419,7 @@ def search_and_analyze_professionals(
 
 def generate_personalized_outreach(profile_url: str, session_id: str) -> str:
     """
-    Generate a personalized outreach message based on a professional's profile.
+    Generate a personalized outreach message for a specific professional based on their profile.
     
     Args:
         profile_url (str): URL of the professional's profile
@@ -401,8 +434,8 @@ def generate_personalized_outreach(profile_url: str, session_id: str) -> str:
         
         # Get user context
         session = Session.query.get(session_id)
-        user_name = session.user.name if session and session.user else "the recruiter"
-        company_name = session.user.company if session and session.user else "the company"
+        user_name = session.user.name if session and session.user else "the job seeker"
+        user_title = session.user.title if session and session.user else "professional"
         
         # Generate personalized message using OpenAI
         prompt = f"""
@@ -410,7 +443,7 @@ def generate_personalized_outreach(profile_url: str, session_id: str) -> str:
         Profile URL: {profile_url}
         Profile Content: {details['content']}
         
-        The message should be from {user_name} at {company_name} and should:
+        The message should be from {user_name} as a {user_title} and should:
         1. Reference specific details from their profile
         2. Show genuine interest in their work
         3. Be concise but personal
@@ -439,11 +472,11 @@ tool_definitions = [
         "type": "function",
         "function": {
             "name": "generate_sequence",
-            "description": "Generates a candidate outreach sequence based on role and location, optionally personalized for a specific professional",
+            "description": "Generates a job application or networking outreach sequence based on role and location, optionally personalized for a specific professional",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "role": {"type": "string", "description": "The role being hired for"},
+                    "role": {"type": "string", "description": "The role you're interested in"},
                     "location": {"type": "string", "description": "Where the job is based"},
                     "step_count": {"type": "integer", "description": "Optional. Number of outreach steps to include"},
                     "session_id": {"type": "string", "description": "The session ID as a string UUID"},
@@ -503,12 +536,12 @@ tool_definitions = [
     {
         "type": "function",
         "function": {
-            "name": "generate_recruiting_asset",
-            "description": "Creates a single recruiting-related message (offer letter, thank you note, follow-up, etc) from a task description",
+            "name": "generate_networking_asset",
+            "description": "Creates a single job search-related message (application email, thank you note, follow-up, etc) from a task description",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "task": {"type": "string", "description": "Instruction like 'Write a thank you email to Sarah after the interview'"},
+                    "task": {"type": "string", "description": "Instruction like 'Write a thank you email after the interview with Google'"},
                     "session_id": {"type": "string", "description": "The session ID as a string UUID"}
                 },
                 "required": ["task", "session_id"]
@@ -519,16 +552,16 @@ tool_definitions = [
         "type": "function",
         "function": {
             "name": "search_and_analyze_professionals",
-            "description": "Searches for professionals based on role and location, and provides a detailed analysis",
+            "description": "Searches for potential employers and networking contacts based on role and location",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "session_id": {"type": "string", "description": "The session ID as a string UUID"},
-                    "query": {"type": "string", "description": "The search query (e.g., 'top designers', 'founding engineers')"},
+                    "query": {"type": "string", "description": "The search query (e.g., 'hiring managers', 'engineering directors')"},
                     "location": {"type": "string", "description": "Optional. Location to search in (e.g., 'San Francisco')"},
                     "years_experience": {"type": "integer", "description": "Optional. Minimum years of experience"},
-                    "skills": {"type": "array", "items": {"type": "string"}, "description": "Optional. List of required skills"},
-                    "current_company": {"type": "string", "description": "Optional. Current company name"}
+                    "skills": {"type": "array", "items": {"type": "string"}, "description": "Optional. List of relevant skills"},
+                    "current_company": {"type": "string", "description": "Optional. Target company name"}
                 },
                 "required": ["session_id", "query"]
             }
@@ -549,4 +582,4 @@ tool_definitions = [
             }
         }
     }
-] 
+]
